@@ -9,13 +9,11 @@
 - 新增了 限速设置 (单向/双向)
 - 新增了 NAT 端口设置
 
+### 变更
+- 配置方式已统一为 YAML-only，旧版 `--nat`、`--traffic`、`--limit` CLI 参数已废弃。
+- 通过编辑 `/etc/sysinfo/config.yaml` 后执行 `sysinfo -r` 应用 NAT、流量统计和限速配置。
+
 Examples:
-  sysinfo --nat 8080-80
-  sysinfo --nat 1-2 3-5
-  sysinfo --traffic 500G
-  sysinfo --traffic 500G 15         # 500G, reset on 15th
-  sysinfo --traffic 500G upload     # upload only
-  sysinfo --traffic 500G 15 upload  # 500G, reset on 15th, upload
-  sysinfo --limit enable 95 1mbps
-  sysinfo --limit disable
-  sysinfo --nat 1-2 --traffic 500G --limit enable 95 1mbps
+  sysinfo -c /etc/sysinfo/config.yaml
+  sysinfo -r
+  sysinfo --reset-traffic

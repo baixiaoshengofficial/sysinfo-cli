@@ -1,0 +1,8 @@
+.git
+.github
+.gitignore
+*.log
+agent-transcripts
+node_modules
+.DS_Store
+**/._*

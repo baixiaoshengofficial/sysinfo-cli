@@ -15,6 +15,7 @@ A lightweight system status dashboard for Debian/Ubuntu SSH login.
 - **NAT Port Mapping**: Display and configure NAT port mappings
 - **Dynamic Bars**: Visualized disk usage with color alerts
 - **Lightweight**: Minimal dependencies and fast execution
+- **YAML Configuration**: Simple and flexible configuration via YAML file
 
 ## Quick Installation
 
@@ -28,13 +29,7 @@ bash <(curl -sSL baixiaosheng.de/sysinfo)
 curl -sSL https://raw.githubusercontent.com/jokerknight/sysinfo-cli/main/install.sh | bash
 ```
 
-### 3. Configure NAT port mappings after installation
-```bash
-sysinfo --nat 1-2 2-3
-```
-**Note**: `1-2` format means `public_port->private_port`. Use `-` to avoid shell redirection issues.
-
-### 4. Download and run
+### 3. Download and run
 ```bash
 git clone https://github.com/jokerknight/sysinfo-cli.git
 cd sysinfo-cli
@@ -50,61 +45,92 @@ sysinfo 2            # Start with 2s refresh interval
 sysinfo 5            # Start with 5s refresh interval
 ```
 
-### Configuration Options (New Format)
-The new CLI format uses flag-based options for better clarity and flexibility:
+### Configuration via YAML
+
+The new YAML configuration format provides a simple and flexible way to configure sysinfo:
+
+**Default Configuration** (auto-generated on install):
+- Monthly traffic limit: 1T
+- Reset day: 1st of each month
+- Traffic mode: both (upload + download)
+- Throttle enabled at 95% with 10mbps limit
+
+**Edit Configuration**:
+```bash
+sudo nano /etc/sysinfo/config.yaml
+```
+
+**Apply Configuration**:
+```bash
+sysinfo -c /etc/sysinfo/config.yaml
+```
+
+**Configuration File Format**:
+
+```yaml
+# Network Interface Configuration
+network:
+  interface: ""              # Auto-detect if empty
+  force_gateway_throttle: false
+
+# NAT Port Mappings
+nat:
+  enabled: false
+  mappings:
+    - "8080:80"
+    - "9000:3000"
+
+# Traffic Limit Configuration
+traffic:
+  enabled: true
+  limit: "1T"               # 1T, 500G, 100M, or UNLIMITED
+  reset_day: 1              # 1-31
+  mode: "both"              # upload, download, or both
+
+# Throttle Configuration
+throttle:
+  enabled: true
+  threshold: 95             # Percentage (0-100)
+  rate: "10mbps"           # Rate limit
+
+# Display Configuration
+display:
+  refresh_interval: 1       # Seconds (1-60)
+  show_traffic: true
+  show_nat: true
+  show_throttle: true
+```
+
+### Command Line Options
 
 ```bash
-# NAT Port Mapping
-sysinfo --nat 8080-80                    # Single mapping
-sysinfo --nat 1-2 3-5 8080-80          # Multiple mappings
+# Display system info with default config
+sysinfo
 
-# Traffic Limit
-sysinfo --traffic 1T                      # 1T monthly limit
-sysinfo --traffic 500G 15                # 500G limit, reset on 15th
-sysinfo --traffic 500G 15 upload         # 500G upload-only, reset on 15th
+# Display with custom configuration file
+sysinfo -c /path/to/custom.yaml
 
-# Traffic Throttling
-sysinfo --limit enable 95 1mbps          # Enable at 95% usage, limit to 1mbps
-sysinfo --limit disable                    # Disable throttling
-sysinfo --limit on 90 1mbps            # Use "on" keyword
+# Apply configuration from YAML file
+sysinfo -c /etc/sysinfo/config.yaml
 
-# Combined Configuration (all at once)
-sysinfo --nat 8080-80 9000-3000 --traffic 500G --limit enable 95 1mbps
-
-# Clear NAT mappings
-sysinfo --clear-nat
+# Reload configuration (apply from /etc/sysinfo/config.yaml)
+sysinfo -r
 
 # Reset monthly traffic statistics
 sysinfo --reset-traffic
+
+# Show help
+sysinfo -h
 ```
 
-**Configuration note**: `install.sh` only performs installation. Configure NAT/traffic/throttling after install via `sysinfo`.
+> Configuration is YAML-only (`-c` / `-r`). Legacy CLI configuration flags are deprecated.
 
-**Reinstall note**: Re-running `install.sh` clears active runtime `tc/ifb` throttling state (runtime only) to avoid stale limits affecting new settings. After reinstall, run `sysinfo --nat/--traffic/--limit ...` again to apply your desired configuration.
-
-### Legacy Commands (Still Supported)
-For backward compatibility, the old command format is still available:
-
-```bash
-# NAT Port Mapping
-sysinfo NAT 1-2
-sysinfo NAT 8080-80 9000-3000
-
-# Traffic Limit
-sysinfo TRAFFIC 1T
-sysinfo TRAFFIC 500G 15 upload
-
-# Traffic Throttling
-sysinfo THROTTLE enable 95 1mbps
-sysinfo THROTTLE disable
-```
-
-**Important**: NAT mappings use `-` format (e.g., `1-2`) instead of `->` to avoid shell redirection issues.
+## Configuration Parameters
 
 ### Traffic Parameters
-- `limit`: Traffic limit (e.g., 1T, 500G, 100M)
-- `day`: Reset day (1-31, default: 1)
-- `mode`: Mode (upload/download/both, default: both)
+- `limit`: Traffic limit (e.g., 1T, 500G, 100M, UNLIMITED)
+- `reset_day`: Reset day (1-31, default: 1)
+- `mode`: Traffic mode (upload/download/both, default: both)
 
 **Traffic modes**:
 - `both` (default): Count both upload and download traffic
@@ -112,13 +138,10 @@ sysinfo THROTTLE disable
 - `download`: Count only download traffic
 
 ### Throttling Parameters
-- `action`: enable/disable/on/off/true/false/start/stop
+- `enabled`: Enable/disable throttling (true/false)
 - `threshold`: Traffic percentage (default: 95)
 - `rate`: Speed limit (minimum: 1mbps, recommended: 1mbps)
-
-**Note**: Throttling requires `tc` (Traffic Control) and root privileges (or passwordless sudo for `tc`).
-
-**Implementation note (maintainability)**: Upload and download throttling now share the same HTB + fq_codel shaping profile. Download shaping applies the same profile via IFB redirect.
+- `network.force_gateway_throttle`: Force throttling on gateway mode (default: false, use with caution)
 
 ## Uninstall
 
@@ -139,6 +162,8 @@ cd sysinfo-cli
 ```
 
 ## Files
-- `sysinfo.sh`: The core logic script
+- `sysinfo.sh`: The main entry script with CLI parsing
+- `sysinfo_core.sh`: Core monitoring and TC functionality
 - `install.sh`: Installation script
 - `uninstall.sh`: Uninstallation script
+- `config.yaml.example`: Example configuration file

@@ -1,0 +1,44 @@
+# SysInfo Configuration File Example
+# Copy to /etc/sysinfo/config.yaml and customize as needed.
+
+# Network Interface Configuration
+network:
+  # Interface to monitor (leave empty for auto-detection)
+  interface: ""
+  # Force throttle on gateway mode (ip_forward=1) - USE WITH CAUTION
+  force_gateway_throttle: false
+
+# NAT Port Mappings
+nat:
+  enabled: false
+  # Port mappings: public-port:private-port
+  mappings: []
+
+# Traffic Limit Configuration
+traffic:
+  enabled: true
+  # Monthly traffic limit: 1T, 500G, 100M, or UNLIMITED
+  limit: "1T"
+  # Day of month to reset traffic (1-31)
+  reset_day: 1
+  # Traffic mode: upload, download, or both
+  mode: "both"
+
+# Throttle Configuration (applied when traffic usage exceeds threshold)
+throttle:
+  enabled: true
+  # Traffic percentage to trigger throttling (0-100)
+  threshold: 95
+  # Rate limit when throttled: 10mbps, 5mbps, 1mbps, etc. (minimum: 1mbps)
+  rate: "10mbps"
+
+# Display Configuration
+display:
+  # Refresh interval in seconds (1-60)
+  refresh_interval: 1
+  # Show traffic statistics
+  show_traffic: true
+  # Show NAT port mappings
+  show_nat: true
+  # Show throttle status
+  show_throttle: true
