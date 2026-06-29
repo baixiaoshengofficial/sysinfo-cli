@@ -11,7 +11,7 @@ echo "[1] Checking tc (Traffic Control)..."
 if command -v tc >/dev/null 2>&1; then
     echo "✓ tc is installed: $(tc --version 2>/dev/null || echo 'unknown version')"
 else
-    echo "✗ tc is NOT installed. Install it with: apt install iproute2"
+    echo "✗ tc is NOT installed. Install iproute2 (Debian/Ubuntu/Alpine/Arch) or iproute (RHEL/Fedora)."
 fi
 echo ""
 
@@ -94,7 +94,7 @@ echo ""
 echo "=== Diagnostic Complete ==="
 echo ""
 echo "Recommendations:"
-echo "1. If tc is not installed: apt install iproute2"
+echo "1. If tc is not installed: iproute2 (apt/apk/pacman) or iproute (dnf/yum)"
 echo "2. If gateway mode is enabled, set network.force_gateway_throttle: true"
 echo "3. Check that the correct network interface is being throttled"
 echo "4. For iperf3 testing, ensure you're testing the correct direction:"

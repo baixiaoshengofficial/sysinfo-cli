@@ -23,8 +23,8 @@ SRC_SCRIPTS := $(wildcard $(ROOT)/src/*.sh) \
 
 .PHONY: help all dev run run-live help-cli syntax lint test validate test-throttle \
         test-notify test-all install install-zh install-en install-reset uninstall \
-        reinstall reload-config deploy push ship docs docs-serve docker-build docker-test \
-        docker-shell clean chmod
+        reinstall reload-config deploy push ship docs docs-serve docs-stop docker-build docker-test \
+        docker-test-distros docker-shell clean chmod
 
 .DEFAULT_GOAL := help
 
@@ -136,10 +136,49 @@ ship: deploy push ## 测试 → 安装 → 推送（需已有 commit）
 
 docs: docs-serve ## 别名: 启动文档静态服务
 
-docs-serve: ## 启动 docs/ 静态服务 http://0.0.0.0:$(DOCS_PORT)（主页 index.html，文档 wiki.html）
-	@printf '  主页: http://127.0.0.1:$(DOCS_PORT)/\n'
-	@printf '  文档: http://127.0.0.1:$(DOCS_PORT)/wiki.html\n'
-	@python3 -m http.server $(DOCS_PORT) --bind 0.0.0.0 --directory $(ROOT)/docs
+# Free DOCS_PORT: stop Docker containers publishing it, then kill listeners.
+docs-stop: ## 释放 $(DOCS_PORT)（停止占用该端口的 Docker 容器与进程）
+	@port='$(DOCS_PORT)'; \
+	freed=0; \
+	if command -v docker >/dev/null 2>&1; then \
+		cids=$$(docker ps -q --filter "publish=$$port" 2>/dev/null); \
+		if [ -n "$$cids" ]; then \
+			printf '  停止占用端口 %s 的 Docker 容器: %s\n' "$$port" "$$cids"; \
+			docker stop $$cids >/dev/null 2>&1 || true; \
+			freed=1; \
+		fi; \
+	fi; \
+	if command -v ss >/dev/null 2>&1 && ss -ltn "sport = :$$port" 2>/dev/null | grep -q LISTEN; then \
+		pids=$$(ss -ltnp "sport = :$$port" 2>/dev/null | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | sort -u); \
+		if [ -n "$$pids" ]; then \
+			printf '  结束占用端口 %s 的进程: %s\n' "$$port" "$$pids"; \
+			kill $$pids 2>/dev/null || true; \
+			sleep 0.2; \
+			kill -9 $$pids 2>/dev/null || true; \
+			freed=1; \
+		fi; \
+	fi; \
+	if command -v ss >/dev/null 2>&1 && ss -ltn "sport = :$$port" 2>/dev/null | grep -q LISTEN; then \
+		if command -v fuser >/dev/null 2>&1; then \
+			printf '  释放端口 %s (fuser)...\n' "$$port"; \
+			fuser -k "$$port/tcp" >/dev/null 2>&1 || true; \
+			freed=1; \
+		fi; \
+	fi; \
+	if [ "$$freed" = 0 ]; then \
+		if command -v ss >/dev/null 2>&1 && ss -ltn "sport = :$$port" 2>/dev/null | grep -q LISTEN; then \
+			printf '  警告: 端口 %s 仍被占用，请手动检查 (ss -ltnp sport = :%s)\n' "$$port" "$$port"; \
+		else \
+			printf '  端口 %s 未被占用\n' "$$port"; \
+		fi; \
+	fi; \
+	sleep 0.2
+
+docs-serve: docs-stop ## 启动 docs/ 静态服务 http://0.0.0.0:$(DOCS_PORT)（端口占用时自动释放）
+	@port='$(DOCS_PORT)'; \
+	printf '  主页: http://127.0.0.1:%s/\n' "$$port"; \
+	printf '  文档: http://127.0.0.1:%s/wiki.html\n' "$$port"; \
+	python3 -m http.server "$$port" --bind 0.0.0.0 --directory $(ROOT)/docs
 
 docker-build: ## 构建测试镜像 sysinfo-cli:dev
 	docker build -t sysinfo-cli:dev $(ROOT)
@@ -148,6 +187,9 @@ docker-test: docker-build ## 在容器内运行 test + validate
 	docker run --rm sysinfo-cli:dev bash -lc '\
 		apt-get update -qq && apt-get install -y -qq zsh >/dev/null 2>&1; \
 		bash tests/test_sysinfo.sh && bash tests/server_validate.sh'
+
+docker-test-distros: chmod ## 多发行版 Docker 安装冒烟测试 (install.sh + yq + tc + sysinfo)
+	@bash $(ROOT)/tests/docker_distros.sh
 
 docker-shell: docker-build ## 进入容器交互 shell
 	docker run --rm -it sysinfo-cli:dev
@@ -160,5 +202,6 @@ clean: ## 删除测试生成的临时文件
 	@rm -f $(ROOT)/tests/test_report.md \
 	       $(ROOT)/tests/test_config.yaml \
 	       $(ROOT)/tests/validate_config.yaml \
+	       $(ROOT)/tests/docker_distros_report.md \
 	       $(ROOT)/tests/*.log
 	@printf '  已清理 tests/ 生成物\n'

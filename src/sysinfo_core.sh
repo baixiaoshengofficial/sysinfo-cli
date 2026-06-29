@@ -889,7 +889,7 @@ apply_rate_limit() {
         already_limited=true
         # Check if rate needs update - delete existing HTB to reapply with new rate
         local existing_class_rate
-        existing_class_rate=$(tc class show dev "$interface" 2>/dev/null | grep "htb" | grep -oP 'rate \K[0-9]+[KMG]?bit' || echo "")
+        existing_class_rate=$(tc class show dev "$interface" 2>/dev/null | grep "htb" | sed -n 's/.*rate \([0-9][0-9]*[KMG]*bit\).*/\1/p' | head -n1 || echo "")
         if [ -n "$existing_class_rate" ]; then
             local existing_rate_kbit
             existing_rate_kbit=$(echo "$existing_class_rate" | sed -E 's/^([0-9]+).*/\1/')

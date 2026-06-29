@@ -1,6 +1,6 @@
 # sysinfo-cli
 
-sysinfo-cli — 适用于 Debian/Ubuntu SSH 登录的轻量级系统状态仪表板。
+sysinfo-cli — 适用于 Linux SSH 登录的轻量级系统状态仪表板（Debian、Ubuntu、RHEL、Fedora、Alpine、Arch、openSUSE 等；不支持 macOS）。
 
 [English](README.md)
 

@@ -57,9 +57,9 @@
     <!-- 介绍 -->
     <article id="intro" class="page active">
       <h1 data-zh="项目介绍" data-en="Introduction">项目介绍</h1>
-      <p class="lead" data-zh="sysinfo-cli 是一个用 Bash 写的服务器状态面板。SSH 登录就能看到 CPU、内存、磁盘、网络等信息，不用额外装监控软件，也不跑后台进程。"
-         data-en="sysinfo-cli is a Bash-based server status panel. See CPU, memory, disk, and network info right when you SSH in — no extra monitoring software or background daemons.">
-        sysinfo-cli 是一个用 Bash 写的服务器状态面板。SSH 登录就能看到 CPU、内存、磁盘、网络等信息，不用额外装监控软件，也不跑后台进程。
+      <p class="lead" data-zh="sysinfo-cli 是一个用 Bash 写的 Linux 服务器状态面板。SSH 登录就能看到 CPU、内存、磁盘、网络等信息，不用额外装监控软件，也不跑后台进程。支持 Debian、Ubuntu、RHEL、Fedora、Alpine、Arch、openSUSE 等发行版（不支持 macOS）。"
+         data-en="sysinfo-cli is a Bash-based Linux server status panel. See CPU, memory, disk, and network info right when you SSH in — no extra monitoring software or background daemons. Supports Debian, Ubuntu, RHEL, Fedora, Alpine, Arch, openSUSE, and more (not macOS).">
+        sysinfo-cli 是一个用 Bash 写的 Linux 服务器状态面板。SSH 登录就能看到 CPU、内存、磁盘、网络等信息，不用额外装监控软件，也不跑后台进程。支持 Debian、Ubuntu、RHEL、Fedora、Alpine、Arch、openSUSE 等发行版（不支持 macOS）。
       </p>
       <div class="feature-grid">
         <div class="feat-card">
@@ -85,9 +85,9 @@
       </div>
       <div class="callout info">
         <strong data-zh="适合谁用？" data-en="Who is it for?">适合谁用？</strong>
-        <span data-zh="个人 VPS、家用服务器、小团队运维——任何 Debian/Ubuntu 机器，想登录时快速看一眼状态的人。"
-              data-en="Personal VPS, home servers, small teams — anyone on Debian/Ubuntu who wants a quick status glance on login.">
-          个人 VPS、家用服务器、小团队运维——任何 Debian/Ubuntu 机器，想登录时快速看一眼状态的人。
+        <span data-zh="个人 VPS、家用服务器、小团队运维——任何 Linux 机器（Debian/Ubuntu/RHEL/Fedora/Alpine/Arch 等），想登录时快速看一眼状态的人。"
+              data-en="Personal VPS, home servers, small teams — any Linux box (Debian, Ubuntu, RHEL, Fedora, Alpine, Arch, etc.) where you want a quick status glance on login.">
+          个人 VPS、家用服务器、小团队运维——任何 Linux 机器（Debian/Ubuntu/RHEL/Fedora/Alpine/Arch 等），想登录时快速看一眼状态的人。
         </span>
       </div>
     </article>
@@ -95,10 +95,30 @@
     <!-- 安装 -->
     <article id="install" class="page">
       <h1 data-zh="安装" data-en="Installation">安装</h1>
-      <p data-zh="三种方式任选，安装脚本会自动装好依赖并配置登录横幅。"
-         data-en="Pick any method. The installer handles dependencies and the login banner automatically.">
-        三种方式任选，安装脚本会自动装好依赖并配置登录横幅。
+      <p data-zh="三种方式任选，安装脚本会自动识别包管理器、装好依赖（yq、iproute）并配置登录横幅。"
+         data-en="Pick any method. The installer detects your package manager, installs dependencies (yq, iproute), and sets up the login banner.">
+        三种方式任选，安装脚本会自动识别包管理器、装好依赖（yq、iproute）并配置登录横幅。
       </p>
+
+      <h2 data-zh="系统要求" data-en="Requirements">系统要求</h2>
+      <table class="data-table">
+        <thead><tr><th data-zh="项目" data-en="Item">项目</th><th data-zh="说明" data-en="Details">说明</th></tr></thead>
+        <tbody>
+          <tr><td data-zh="操作系统" data-en="OS">操作系统</td><td data-zh="Linux（bash）；不支持 macOS" data-en="Linux with bash; macOS not supported">Linux（bash）；不支持 macOS</td></tr>
+          <tr><td data-zh="发行版" data-en="Distros">发行版</td><td data-zh="Debian、Ubuntu、RHEL、CentOS、Rocky、Alma、Fedora、Alpine、Arch、openSUSE、Gentoo 等" data-en="Debian, Ubuntu, RHEL, CentOS, Rocky, Alma, Fedora, Alpine, Arch, openSUSE, Gentoo, …">Debian、Ubuntu、RHEL、CentOS、Rocky、Alma、Fedora、Alpine、Arch、openSUSE、Gentoo 等</td></tr>
+          <tr><td data-zh="包管理器" data-en="Package managers">包管理器</td><td data-zh="apt、dnf、yum、apk、pacman、zypper、emerge（自动检测）" data-en="apt, dnf, yum, apk, pacman, zypper, emerge (auto-detected)">apt、dnf、yum、apk、pacman、zypper、emerge（自动检测）</td></tr>
+          <tr><td data-zh="tc / ip" data-en="tc / ip">tc / ip</td><td data-zh="iproute2（Debian/Alpine/Arch）或 iproute（RHEL/Fedora）" data-en="iproute2 (Debian/Alpine/Arch) or iproute (RHEL/Fedora)">iproute2（Debian/Alpine/Arch）或 iproute（RHEL/Fedora）</td></tr>
+          <tr><td data-zh="yq" data-en="yq">yq</td><td data-zh="mikefarah 版，按 CPU 架构下载（amd64 / arm64 / arm）" data-en="mikefarah build, downloaded for your CPU (amd64 / arm64 / arm)">mikefarah 版，按 CPU 架构下载（amd64 / arm64 / arm）</td></tr>
+          <tr><td data-zh="权限" data-en="Privileges">权限</td><td data-zh="安装与限速需要 root 或 sudo" data-en="root or sudo for install and throttling">安装与限速需要 root 或 sudo</td></tr>
+        </tbody>
+      </table>
+      <div class="callout info">
+        <strong data-zh="Alpine 提示" data-en="Alpine note">Alpine 提示</strong>
+        <span data-zh="默认 shell 是 ash，需先安装 bash：apk add bash。安装脚本会尝试用 apk 安装 iproute2。"
+              data-en="Default shell is ash — install bash first: apk add bash. The installer uses apk for iproute2.">
+          默认 shell 是 ash，需先安装 bash：apk add bash。安装脚本会尝试用 apk 安装 iproute2。
+        </span>
+      </div>
 
       <h2 data-zh="一键安装" data-en="One-liner">一键安装</h2>
       <pre class="code-block"><code>bash &lt;(curl -sSL baixiaosheng.de/sysinfo)</code></pre>
@@ -396,6 +416,20 @@ notify:
     <article id="faq" class="page">
       <h1 data-zh="常见问题" data-en="FAQ">常见问题</h1>
       <div class="faq-list">
+        <details class="faq-item">
+          <summary data-zh="支持哪些操作系统？" data-en="Which operating systems are supported?">支持哪些操作系统？</summary>
+          <p data-zh="仅支持 Linux（需 bash）。常见发行版：Debian、Ubuntu、RHEL、CentOS、Rocky、Alma、Fedora、Alpine、Arch、openSUSE、Gentoo。安装脚本自动识别 apt/dnf/yum/apk/pacman/zypper/emerge。macOS 不支持（依赖 Linux tc、IFB 等）。"
+             data-en="Linux only (bash required). Common distros: Debian, Ubuntu, RHEL, CentOS, Rocky, Alma, Fedora, Alpine, Arch, openSUSE, Gentoo. install.sh auto-detects apt/dnf/yum/apk/pacman/zypper/emerge. macOS is not supported (Linux tc, IFB, etc.).">
+            仅支持 Linux（需 bash）。常见发行版：Debian、Ubuntu、RHEL、CentOS、Rocky、Alma、Fedora、Alpine、Arch、openSUSE、Gentoo。安装脚本自动识别 apt/dnf/yum/apk/pacman/zypper/emerge。macOS 不支持（依赖 Linux tc、IFB 等）。
+          </p>
+        </details>
+        <details class="faq-item">
+          <summary data-zh="yq 报 Exec format error？" data-en="yq: Exec format error?">yq 报 Exec format error？</summary>
+          <p data-zh="通常是 ARM 服务器上装了 amd64 的 yq。删除后重装：sudo rm -f /usr/local/bin/yq，再执行 install.sh（会按 uname -m 下载 yq_linux_arm64 等）。验证：yq --version 和 yq eval '.display.language' /etc/sysinfo/config.yaml。"
+             data-en="Usually an amd64 yq binary on an ARM host. Remove and reinstall: sudo rm -f /usr/local/bin/yq, then re-run install.sh (picks yq_linux_arm64 etc. from uname -m). Verify with yq --version and yq eval '.display.language' /etc/sysinfo/config.yaml.">
+            通常是 ARM 服务器上装了 amd64 的 yq。删除后重装：sudo rm -f /usr/local/bin/yq，再执行 install.sh（会按 uname -m 下载 yq_linux_arm64 等）。验证：yq --version 和 yq eval '.display.language' /etc/sysinfo/config.yaml。
+          </p>
+        </details>
         <details class="faq-item">
           <summary data-zh="SSH 登录没看到面板？" data-en="No banner on SSH login?">SSH 登录没看到面板？</summary>
           <p data-zh="确认是正常登录（不是 scp 传文件）。zsh 用户如果还是没有，重新执行一次 sudo ./install.sh 修复 hook。"

@@ -1,5 +1,5 @@
 # Dockerfile for testing sysinfo-cli
-# Matches project target OS (Debian/Ubuntu)
+# Primary target: Debian/Ubuntu family; install.sh also supports RHEL/Fedora/Alpine/Arch/openSUSE.
 FROM debian:bookworm-slim
 
 # Avoid interactive prompts during apt install
@@ -32,7 +32,15 @@ RUN apt-get update -qq && \
 
 # Install yq (mikefarah/yq) - required by sysinfo-cli for YAML parsing
 ARG YQ_VERSION=v4.44.3
-RUN curl -sSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" \
+ARG TARGETARCH
+RUN case "${TARGETARCH:-amd64}" in \
+        amd64) YQ_ASSET=yq_linux_amd64 ;; \
+        arm64) YQ_ASSET=yq_linux_arm64 ;; \
+        arm)   YQ_ASSET=yq_linux_arm ;; \
+        386)   YQ_ASSET=yq_linux_386 ;; \
+        *)     YQ_ASSET=yq_linux_amd64 ;; \
+    esac && \
+    curl -sSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/${YQ_ASSET}" \
         -o /usr/local/bin/yq && \
     chmod +x /usr/local/bin/yq
 

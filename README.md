@@ -1,6 +1,6 @@
 # sysinfo-cli
 
-sysinfo-cli — A lightweight system status dashboard for Debian/Ubuntu SSH login.
+sysinfo-cli — A lightweight system status dashboard for Linux SSH login (Debian, Ubuntu, RHEL, Fedora, Alpine, Arch, openSUSE, …; macOS not supported).
 
 [中文说明](README_zh.md)
 

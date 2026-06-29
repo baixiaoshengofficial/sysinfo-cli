@@ -2,4 +2,9 @@
 tests/test_report.md
 tests/test_config.yaml
 tests/validate_config.yaml
+tests/docker_distros_report.md
+tests/docker_distros_run.log
 tests/*.log
+
+# Local IDE assistant notes (not for version control)
+CODEBUDDY.md
