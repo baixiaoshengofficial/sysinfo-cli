@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>sysinfo-cli 文档</title>
+<link rel="stylesheet" href="wiki.css" />
+</head>
+<body>
+
+<div class="wiki-shell">
+  <!-- 左侧导航 -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <a href="index.html" class="brand"><span class="dot"></span> sysinfo-cli</a>
+      <button class="lang-btn" id="langBtn">EN</button>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group" data-label-zh="开始" data-label-en="Start">
+        <a href="#intro" class="nav-item active" data-zh="项目介绍" data-en="Introduction">项目介绍</a>
+        <a href="#install" class="nav-item" data-zh="安装" data-en="Installation">安装</a>
+        <a href="#upgrade" class="nav-item" data-zh="升级与卸载" data-en="Upgrade & Uninstall">升级与卸载</a>
+      </div>
+      <div class="nav-group" data-label-zh="日常使用" data-label-en="Daily Use">
+        <a href="#commands" class="nav-item" data-zh="常用命令" data-en="Commands">常用命令</a>
+        <a href="#dashboard" class="nav-item" data-zh="面板说明" data-en="Dashboard">面板说明</a>
+        <a href="#config" class="nav-item" data-zh="配置文件" data-en="Configuration">配置文件</a>
+      </div>
+      <div class="nav-group" data-label-zh="进阶功能" data-label-en="Advanced">
+        <a href="#traffic" class="nav-item" data-zh="流量与限速" data-en="Traffic & Throttle">流量与限速</a>
+        <a href="#notify" class="nav-item" data-zh="推送通知" data-en="Notifications">推送通知</a>
+        <a href="#i18n" class="nav-item" data-zh="切换语言" data-en="Language">切换语言</a>
+        <a href="#banner" class="nav-item" data-zh="登录横幅" data-en="Login Banner">登录横幅</a>
+      </div>
+      <div class="nav-group" data-label-zh="参考" data-label-en="Reference">
+        <a href="#paths" class="nav-item" data-zh="文件路径" data-en="File Paths">文件路径</a>
+        <a href="#faq" class="nav-item" data-zh="常见问题" data-en="FAQ">常见问题</a>
+        <a href="#dev" class="nav-item" data-zh="开发测试" data-en="Development">开发测试</a>
+      </div>
+    </nav>
+    <div class="sidebar-foot">
+      <a href="index.html" data-zh="← 返回主页" data-en="← Home">← 返回主页</a>
+      <a href="https://github.com/baixiaoshengofficial/sysinfo-cli" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </aside>
+
+  <!-- 移动端顶栏 -->
+  <header class="mobile-bar">
+    <button class="menu-btn" id="menuBtn" aria-label="menu">☰</button>
+    <span class="mobile-title">sysinfo-cli 文档</span>
+    <button class="lang-btn sm" id="langBtnM">EN</button>
+  </header>
+
+  <!-- 右侧正文 -->
+  <main class="content" id="content">
+
+    <!-- 介绍 -->
+    <article id="intro" class="page active">
+      <h1 data-zh="项目介绍" data-en="Introduction">项目介绍</h1>
+      <p class="lead" data-zh="sysinfo-cli 是一个用 Bash 写的服务器状态面板。SSH 登录就能看到 CPU、内存、磁盘、网络等信息，不用额外装监控软件，也不跑后台进程。"
+         data-en="sysinfo-cli is a Bash-based server status panel. See CPU, memory, disk, and network info right when you SSH in — no extra monitoring software or background daemons.">
+        sysinfo-cli 是一个用 Bash 写的服务器状态面板。SSH 登录就能看到 CPU、内存、磁盘、网络等信息，不用额外装监控软件，也不跑后台进程。
+      </p>
+      <div class="feature-grid">
+        <div class="feat-card">
+          <div class="feat-icon">🔐</div>
+          <h3 data-zh="登录即显示" data-en="Login Banner">登录即显示</h3>
+          <p data-zh="bash 和 zsh 登录后自动弹出状态面板" data-en="Auto-shows on bash and zsh login">bash 和 zsh 登录后自动弹出状态面板</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-icon">📊</div>
+          <h3 data-zh="实时监控" data-en="Live Monitor">实时监控</h3>
+          <p data-zh="运行 sysinfo 进入刷新式面板，不闪屏" data-en="Run sysinfo for a flicker-free live dashboard">运行 sysinfo 进入刷新式面板，不闪屏</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-icon">📈</div>
+          <h3 data-zh="流量统计" data-en="Traffic">流量统计</h3>
+          <p data-zh="按月统计流量，快到上限时自动限速" data-en="Monthly traffic accounting with auto throttling">按月统计流量，快到上限时自动限速</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-icon">🔔</div>
+          <h3 data-zh="手机推送" data-en="Push Alerts">手机推送</h3>
+          <p data-zh="通过 Bark 把告警推送到手机" data-en="Bark push alerts to your phone">通过 Bark 把告警推送到手机</p>
+        </div>
+      </div>
+      <div class="callout info">
+        <strong data-zh="适合谁用？" data-en="Who is it for?">适合谁用？</strong>
+        <span data-zh="个人 VPS、家用服务器、小团队运维——任何 Debian/Ubuntu 机器，想登录时快速看一眼状态的人。"
+              data-en="Personal VPS, home servers, small teams — anyone on Debian/Ubuntu who wants a quick status glance on login.">
+          个人 VPS、家用服务器、小团队运维——任何 Debian/Ubuntu 机器，想登录时快速看一眼状态的人。
+        </span>
+      </div>
+    </article>
+
+    <!-- 安装 -->
+    <article id="install" class="page">
+      <h1 data-zh="安装" data-en="Installation">安装</h1>
+      <p data-zh="三种方式任选，安装脚本会自动装好依赖并配置登录横幅。"
+         data-en="Pick any method. The installer handles dependencies and the login banner automatically.">
+        三种方式任选，安装脚本会自动装好依赖并配置登录横幅。
+      </p>
+
+      <h2 data-zh="一键安装" data-en="One-liner">一键安装</h2>
+      <pre class="code-block"><code>bash &lt;(curl -sSL baixiaosheng.de/sysinfo)</code></pre>
+
+      <h2 data-zh="从 GitHub 安装" data-en="Via GitHub">从 GitHub 安装</h2>
+      <pre class="code-block"><code>curl -sSL https://raw.githubusercontent.com/baixiaoshengofficial/sysinfo-cli/main/install.sh | bash</code></pre>
+
+      <h2 data-zh="克隆后安装" data-en="Clone & Install">克隆后安装</h2>
+      <pre class="code-block"><code>git clone https://github.com/baixiaoshengofficial/sysinfo-cli.git
+cd sysinfo-cli
+sudo ./install.sh</code></pre>
+
+      <h2 data-zh="安装参数" data-en="Install Options">安装参数</h2>
+      <table class="data-table">
+        <thead><tr><th data-zh="参数" data-en="Option">参数</th><th data-zh="说明" data-en="Description">说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>--lang zh|en</code></td><td data-zh="指定界面语言，不写则按系统语言自动判断" data-en="Set UI language; auto-detect if omitted">指定界面语言，不写则按系统语言自动判断</td></tr>
+          <tr><td><code>--overwrite-config</code></td><td data-zh="用默认模板覆盖已有配置（旧配置会自动备份）" data-en="Reset config from template (old one backed up)">用默认模板覆盖已有配置（旧配置会自动备份）</td></tr>
+          <tr><td><code>--uninstall</code></td><td data-zh="卸载 sysinfo-cli" data-en="Uninstall sysinfo-cli">卸载 sysinfo-cli</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <strong data-zh="小提示" data-en="Tip">小提示</strong>
+        <span data-zh="重复执行 install.sh 不会覆盖你改过的 config.yaml。只有加 --overwrite-config 才会重置。"
+              data-en="Re-running install.sh keeps your config. Only --overwrite-config resets it.">
+          重复执行 install.sh 不会覆盖你改过的 config.yaml。只有加 --overwrite-config 才会重置。
+        </span>
+      </div>
+    </article>
+
+    <!-- 升级 -->
+    <article id="upgrade" class="page">
+      <h1 data-zh="升级与卸载" data-en="Upgrade & Uninstall">升级与卸载</h1>
+      <h2 data-zh="升级" data-en="Upgrade">升级</h2>
+      <pre class="code-block"><code>cd sysinfo-cli && git pull && sudo ./install.sh</code></pre>
+      <p data-zh="想同时把配置也恢复成最新模板：" data-en="To also reset config to the latest template:">想同时把配置也恢复成最新模板：</p>
+      <pre class="code-block"><code>sudo ./install.sh --overwrite-config</code></pre>
+      <h2 data-zh="卸载" data-en="Uninstall">卸载</h2>
+      <pre class="code-block"><code>sudo ./uninstall.sh</code></pre>
+      <p data-zh="会删除所有脚本、配置文件、状态文件和 zsh 登录 hook。"
+         data-en="Removes all scripts, configs, state files, and the zsh login hook.">
+        会删除所有脚本、配置文件、状态文件和 zsh 登录 hook。
+      </p>
+    </article>
+
+    <!-- 命令 -->
+    <article id="commands" class="page">
+      <h1 data-zh="常用命令" data-en="Commands">常用命令</h1>
+      <table class="data-table cmd-table">
+        <thead><tr><th data-zh="命令" data-en="Command">命令</th><th data-zh="做什么" data-en="What it does">做什么</th></tr></thead>
+        <tbody>
+          <tr><td><code>sysinfo</code></td><td data-zh="打开实时面板（默认 1 秒刷新）" data-en="Open live dashboard (1s refresh)">打开实时面板（默认 1 秒刷新）</td></tr>
+          <tr><td><code>sysinfo 2</code></td><td data-zh="每 2 秒刷新一次" data-en="Refresh every 2 seconds">每 2 秒刷新一次</td></tr>
+          <tr><td><code>sysinfo -r</code></td><td data-zh="重新加载 /etc/sysinfo/config.yaml" data-en="Reload /etc/sysinfo/config.yaml">重新加载 /etc/sysinfo/config.yaml</td></tr>
+          <tr><td><code>sysinfo -c 文件.yaml</code></td><td data-zh="从指定配置文件应用设置" data-en="Apply settings from a YAML file">从指定配置文件应用设置</td></tr>
+          <tr><td><code>sysinfo --reset-traffic</code></td><td data-zh="清零本月流量统计" data-en="Reset monthly traffic counter">清零本月流量统计</td></tr>
+          <tr><td><code>sysinfo --clear-nat</code></td><td data-zh="清除 NAT 端口映射" data-en="Clear NAT port mappings">清除 NAT 端口映射</td></tr>
+          <tr><td><code>sysinfo --notify-test</code></td><td data-zh="发一条测试推送，检查 Bark 是否配好" data-en="Send a test push to verify Bark">发一条测试推送，检查 Bark 是否配好</td></tr>
+          <tr><td><code>sysinfo --notify-check</code></td><td data-zh="检查告警规则（适合放 cron 定时跑）" data-en="Evaluate alert rules (for cron)">检查告警规则（适合放 cron 定时跑）</td></tr>
+        </tbody>
+      </table>
+      <div class="callout warn">
+        <strong data-zh="注意" data-en="Note">注意</strong>
+        <span data-zh="配置只能通过 YAML 文件修改（-c / -r），旧的 --nat、--traffic 等命令行参数已经不用了。"
+              data-en="Config is YAML-only (-c / -r). Legacy --nat, --traffic flags are removed.">
+          配置只能通过 YAML 文件修改（-c / -r），旧的 --nat、--traffic 等命令行参数已经不用了。
+        </span>
+      </div>
+    </article>
+
+    <!-- 面板 -->
+    <article id="dashboard" class="page">
+      <h1 data-zh="面板说明" data-en="Dashboard">面板说明</h1>
+      <p data-zh="登录或运行 sysinfo 后，面板分四个区域展示信息："
+         data-en="The dashboard has four sections:">登录或运行 sysinfo 后，面板分四个区域展示信息：</p>
+
+      <div class="panel-demo">
+        <pre class="term-preview"><span class="c-d">================================================================</span>
+  <b>系统信息面板</b> - 2026-06-29 17:49:12
+<span class="c-d">================================================================</span>
+<span class="c-g">核心信息</span>
+  CPU      : Intel(R) Core(TM) i5-9600 @ 3.10GHz (6 core(s))
+  IPv4     : 10.103.241.153
+  运行时间 : 1 week, 4 days, 4 hours
+<span class="c-g">资源使用</span>
+  负载     : 71.3%                             进程数   : 3725
+  内存     : 19Gi / 31Gi (62%)
+<span class="c-g">网络</span>
+  下载     : 55.5 KB/s                         上传     : 0 KB/s
+  使用率   : [<span class="bar-f">█████</span><span class="bar-e">█████</span>] 48%
+  限速状态 : <span class="c-g">未限速</span>
+<span class="c-g">磁盘</span>
+  /                      162G      90G      59% [<span class="bar-f">█████</span><span class="bar-e">█████</span>]
+<span class="c-d">================================================================</span></pre>
+      </div>
+
+      <table class="data-table">
+        <thead><tr><th data-zh="区域" data-en="Section">区域</th><th data-zh="内容" data-en="Contents">内容</th></tr></thead>
+        <tbody>
+          <tr><td data-zh="核心信息" data-en="Core">核心信息</td><td data-zh="CPU 型号、IP 地址、NAT 映射、运行时间" data-en="CPU model, IPs, NAT mappings, uptime">CPU 型号、IP 地址、NAT 映射、运行时间</td></tr>
+          <tr><td data-zh="资源使用" data-en="Resources">资源使用</td><td data-zh="CPU 负载、内存、交换分区、进程数、在线用户" data-en="CPU load, memory, swap, processes, users">CPU 负载、内存、交换分区、进程数、在线用户</td></tr>
+          <tr><td data-zh="网络" data-en="Network">网络</td><td data-zh="实时网速、本月流量、配额使用率、限速状态" data-en="Live speed, monthly traffic, quota, throttle status">实时网速、本月流量、配额使用率、限速状态</td></tr>
+          <tr><td data-zh="磁盘" data-en="Disk">磁盘</td><td data-zh="各挂载点的总量、已用、占比和进度条" data-en="Mount points with size, used, percent, progress bar">各挂载点的总量、已用、占比和进度条</td></tr>
+        </tbody>
+      </table>
+      <p data-zh="进度条：白色方块表示已用，黑色方块表示剩余。"
+         data-en="Progress bars: white blocks = used, black blocks = free.">
+        进度条：白色方块表示已用，黑色方块表示剩余。
+      </p>
+    </article>
+
+    <!-- 配置 -->
+    <article id="config" class="page">
+      <h1 data-zh="配置文件" data-en="Configuration">配置文件</h1>
+      <p data-zh="配置文件在 /etc/sysinfo/config.yaml，改完后执行 sudo sysinfo -r 生效。"
+         data-en="Config lives at /etc/sysinfo/config.yaml. Run sudo sysinfo -r after editing.">
+        配置文件在 <code>/etc/sysinfo/config.yaml</code>，改完后执行 <code>sudo sysinfo -r</code> 生效。
+      </p>
+
+      <h2 data-zh="完整示例" data-en="Full Example">完整示例</h2>
+      <pre class="code-block"><code>network:
+  interface: ""                    # 留空自动检测网卡
+  force_gateway_throttle: false    # 网关模式下是否强制限速
+
+nat:
+  enabled: false
+  mappings:
+    - "8080:80"                    # 公网端口:内网端口
+    - "9000:3000"
+
+traffic:
+  enabled: true
+  limit: "1T"                      # 1T / 500G / 100M / UNLIMITED
+  reset_day: 1                     # 每月几号重置流量
+  mode: "both"                     # upload / download / both
+
+throttle:
+  enabled: true
+  threshold: 95                    # 用到 95% 开始限速
+  rate: "10mbps"                   # 限速到 10 Mbps
+
+display:
+  language: "auto"                 # auto / zh / en
+  refresh_interval: 1
+  show_traffic: true
+  show_nat: true
+  show_throttle: true
+
+notify:
+  enabled: false
+  bark:
+    url: "https://api.day.app"
+    key: ""
+  cooldown: 1800
+  rules:
+    cpu:      { enabled: false, threshold: 90 }
+    net:      { enabled: false, threshold: 90 }
+    nic:      { enabled: false, threshold: 80, mode: both, upload_rate: 0, download_rate: 0 }
+    throttle: { enabled: false }
+    disk:     { enabled: false, threshold: 90, paths: [] }</code></pre>
+
+      <div class="callout info">
+        <strong data-zh="关于 NAT" data-en="About NAT">关于 NAT</strong>
+        <span data-zh="NAT 配置只在面板上展示端口映射关系，不会帮你改 iptables 或 nftables 规则。"
+              data-en="NAT config is display-only — it won't configure iptables/nftables for you.">
+          NAT 配置只在面板上展示端口映射关系，不会帮你改 iptables 或 nftables 规则。
+        </span>
+      </div>
+    </article>
+
+    <!-- 流量 -->
+    <article id="traffic" class="page">
+      <h1 data-zh="流量统计与限速" data-en="Traffic & Throttling">流量统计与限速</h1>
+
+      <h2 data-zh="流量怎么统计" data-en="How Traffic Works">流量怎么统计</h2>
+      <ul class="plain-list">
+        <li data-zh="从 /proc/net/dev 读取网卡收发字节数，按月累计" data-en="Reads /proc/net/dev and accumulates monthly">从 /proc/net/dev 读取网卡收发字节数，按月累计</li>
+        <li data-zh="数据存在 /etc/sysinfo-traffic.json，到 reset_day 那天自动清零" data-en="Stored in /etc/sysinfo-traffic.json, resets on reset_day">数据存在 /etc/sysinfo-traffic.json，到 reset_day 那天自动清零</li>
+        <li data-zh="mode 可以只统计上传、只统计下载，或者两个方向都算" data-en="mode can count upload, download, or both">mode 可以只统计上传、只统计下载，或者两个方向都算</li>
+      </ul>
+
+      <h2 data-zh="自动限速怎么工作" data-en="How Throttling Works">自动限速怎么工作</h2>
+      <p data-zh="当本月流量用到 threshold 设定的百分比后，sysinfo-cli 会用 Linux tc 命令把网速限制到 rate 指定的值。"
+         data-en="When monthly usage hits the threshold %, sysinfo-cli uses Linux tc to cap speed to the configured rate.">
+        当本月流量用到 threshold 设定的百分比后，sysinfo-cli 会用 Linux tc 命令把网速限制到 rate 指定的值。
+      </p>
+      <div class="flow-diagram">
+        <div class="flow-step" data-zh="流量达到 95%" data-en="Traffic hits 95%">流量达到 95%</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" data-zh="tc 限速到 10 Mbps" data-en="tc limits to 10 Mbps">tc 限速到 10 Mbps</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" data-zh="面板显示「限速中」" data-en="Dashboard shows throttling">面板显示「限速中」</div>
+      </div>
+      <div class="callout warn">
+        <strong data-zh="网关模式" data-en="Gateway Mode">网关模式</strong>
+        <span data-zh="如果服务器开了 IP 转发（做路由/网关），默认不会限速，怕影响下游设备。确实需要的话，在配置里设 force_gateway_throttle: true。"
+              data-en="If ip_forward is enabled (router/gateway), throttling is skipped by default. Set force_gateway_throttle: true if needed.">
+          如果服务器开了 IP 转发（做路由/网关），默认不会限速，怕影响下游设备。确实需要的话，在配置里设 force_gateway_throttle: true。
+        </span>
+      </div>
+      <h2 data-zh="排查限速问题" data-en="Troubleshooting">排查限速问题</h2>
+      <pre class="code-block"><code>bash scripts/test_throttle.sh</code></pre>
+    </article>
+
+    <!-- 推送 -->
+    <article id="notify" class="page">
+      <h1 data-zh="推送通知" data-en="Push Notifications">推送通知</h1>
+      <p data-zh="通过 Bark 把告警推送到 iPhone。默认全部关闭，需要在 config.yaml 里手动开启。"
+         data-en="Send alerts to iPhone via Bark. Disabled by default — enable in config.yaml.">
+        通过 Bark 把告警推送到 iPhone。默认全部关闭，需要在 config.yaml 里手动开启。
+      </p>
+
+      <h2 data-zh="怎么开启" data-en="How to Enable">怎么开启</h2>
+      <ol class="steps">
+        <li data-zh="在 iPhone 上安装 Bark App，拿到推送 Key" data-en="Install Bark on iPhone and get your push key">在 iPhone 上安装 Bark App，拿到推送 Key</li>
+        <li data-zh="编辑 config.yaml，填上 bark.key，把 notify.enabled 改成 true" data-en="Edit config.yaml: set bark.key and notify.enabled: true">编辑 config.yaml，填上 bark.key，把 notify.enabled 改成 true</li>
+        <li data-zh="开启你需要的规则（比如 cpu.enabled: true）" data-en="Enable the rules you need (e.g. cpu.enabled: true)">开启你需要的规则（比如 cpu.enabled: true）</li>
+        <li data-zh="执行 sudo sysinfo -r 应用配置" data-en="Run sudo sysinfo -r">执行 sudo sysinfo -r 应用配置</li>
+        <li data-zh="运行 sysinfo --notify-test 测试能不能收到" data-en="Run sysinfo --notify-test to verify">运行 sysinfo --notify-test 测试能不能收到</li>
+      </ol>
+
+      <h2 data-zh="五种告警规则" data-en="Five Alert Rules">五种告警规则</h2>
+      <table class="data-table">
+        <thead><tr><th data-zh="规则" data-en="Rule">规则</th><th data-zh="什么时候推送" data-en="When it fires">什么时候推送</th></tr></thead>
+        <tbody>
+          <tr><td><code>cpu</code></td><td data-zh="CPU 使用率超过阈值" data-en="CPU usage exceeds threshold">CPU 使用率超过阈值</td></tr>
+          <tr><td><code>net</code></td><td data-zh="本月流量用到配额的百分之几" data-en="Monthly traffic hits quota %">本月流量用到配额的百分之几</td></tr>
+          <tr><td><code>nic</code></td><td data-zh="网速达到带宽的百分之几（可分别监控上传/下载）" data-en="Speed hits % of bandwidth (upload/download/both)">网速达到带宽的百分之几（可分别监控上传/下载）</td></tr>
+          <tr><td><code>throttle</code></td><td data-zh="自动限速被触发时" data-en="When auto-throttling activates">自动限速被触发时</td></tr>
+          <tr><td><code>disk</code></td><td data-zh="某个磁盘分区使用率超过阈值" data-en="Disk usage exceeds threshold">某个磁盘分区使用率超过阈值</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <strong data-zh="不会刷屏" data-en="No spam">不会刷屏</strong>
+        <span data-zh="告警是「边沿触发」的——只在状态变化时推送，同一条规则有 cooldown 冷却时间（默认 30 分钟）。"
+              data-en="Edge-triggered alerts with cooldown (default 30 min) — no spam.">
+          告警是「边沿触发」的——只在状态变化时推送，同一条规则有 cooldown 冷却时间（默认 30 分钟）。
+        </span>
+      </div>
+
+      <h2 data-zh="定时检查（cron）" data-en="Cron Setup">定时检查（cron）</h2>
+      <pre class="code-block"><code># 每 5 分钟检查一次告警规则
+*/5 * * * * /usr/local/bin/sysinfo --notify-check</code></pre>
+    </article>
+
+    <!-- 语言 -->
+    <article id="i18n" class="page">
+      <h1 data-zh="切换语言" data-en="Language">切换语言</h1>
+      <p data-zh="在 config.yaml 里改 display.language：" data-en="Change display.language in config.yaml:">在 config.yaml 里改 display.language：</p>
+      <pre class="code-block"><code>display:
+  language: "zh"    # auto / zh / en</code></pre>
+      <ul class="plain-list">
+        <li><code>auto</code> — <span data-zh="跟随系统语言" data-en="Follow system locale">跟随系统语言</span></li>
+        <li><code>zh</code> — <span data-zh="中文界面" data-en="Chinese UI">中文界面</span></li>
+        <li><code>en</code> — <span data-zh="英文界面" data-en="English UI">英文界面</span></li>
+      </ul>
+      <p data-zh="改完运行 sysinfo 立即生效；运行 sudo sysinfo -r 可以让 SSH 登录横幅也一起切换。"
+         data-en="Run sysinfo for immediate effect; sudo sysinfo -r also updates the SSH login banner.">
+        改完运行 sysinfo 立即生效；运行 sudo sysinfo -r 可以让 SSH 登录横幅也一起切换。
+      </p>
+    </article>
+
+    <!-- 横幅 -->
+    <article id="banner" class="page">
+      <h1 data-zh="SSH 登录横幅" data-en="SSH Login Banner">SSH 登录横幅</h1>
+      <p data-zh="安装后，每次 SSH 登录会自动显示系统状态面板，不用手动敲 sysinfo。"
+         data-en="After install, every SSH login shows the status panel automatically.">
+        安装后，每次 SSH 登录会自动显示系统状态面板，不用手动敲 sysinfo。
+      </p>
+      <ul class="plain-list">
+        <li data-zh="bash 用户：通过 /etc/profile.d/ 加载" data-en="bash: loaded via /etc/profile.d/">bash 用户：通过 /etc/profile.d/ 加载</li>
+        <li data-zh="zsh 用户：通过 /etc/zsh/zprofile 加载" data-en="zsh: loaded via /etc/zsh/zprofile">zsh 用户：通过 /etc/zsh/zprofile 加载</li>
+        <li data-zh="scp、sftp、ssh host command 这类非交互操作不会显示" data-en="Skipped for scp, sftp, ssh host command">scp、sftp、ssh host command 这类非交互操作不会显示</li>
+        <li data-zh="同一次登录只显示一次" data-en="Shows once per login session">同一次登录只显示一次</li>
+      </ul>
+    </article>
+
+    <!-- 路径 -->
+    <article id="paths" class="page">
+      <h1 data-zh="文件路径" data-en="File Paths">文件路径</h1>
+      <table class="data-table">
+        <thead><tr><th data-zh="路径" data-en="Path">路径</th><th data-zh="用途" data-en="Purpose">用途</th></tr></thead>
+        <tbody>
+          <tr><td><code>/usr/local/bin/sysinfo</code></td><td data-zh="命令入口" data-en="Command entry">命令入口</td></tr>
+          <tr><td><code>/etc/sysinfo/config.yaml</code></td><td data-zh="主配置文件" data-en="Main config">主配置文件</td></tr>
+          <tr><td><code>/etc/sysinfo-traffic.json</code></td><td data-zh="流量计数和限速状态" data-en="Traffic counter & throttle state">流量计数和限速状态</td></tr>
+          <tr><td><code>/etc/sysinfo-lang</code></td><td data-zh="持久化的界面语言" data-en="Persisted UI language">持久化的界面语言</td></tr>
+          <tr><td><code>/var/tmp/sysinfo-notify-state-&lt;用户&gt;</code></td><td data-zh="推送告警的去重状态" data-en="Notification dedup state">推送告警的去重状态</td></tr>
+        </tbody>
+      </table>
+    </article>
+
+    <!-- FAQ -->
+    <article id="faq" class="page">
+      <h1 data-zh="常见问题" data-en="FAQ">常见问题</h1>
+      <div class="faq-list">
+        <details class="faq-item">
+          <summary data-zh="SSH 登录没看到面板？" data-en="No banner on SSH login?">SSH 登录没看到面板？</summary>
+          <p data-zh="确认是正常登录（不是 scp 传文件）。zsh 用户如果还是没有，重新执行一次 sudo ./install.sh 修复 hook。"
+             data-en="Make sure it's a normal login (not scp). zsh users: re-run sudo ./install.sh to fix the hook.">
+            确认是正常登录（不是 scp 传文件）。zsh 用户如果还是没有，重新执行一次 sudo ./install.sh 修复 hook。
+          </p>
+        </details>
+        <details class="faq-item">
+          <summary data-zh="改了配置但没效果？" data-en="Config changes not applied?">改了配置但没效果？</summary>
+          <p data-zh="普通用户会优先读 ~/.config/sysinfo/config.yaml，如果存在就会覆盖系统配置。删掉它，或者指定 SYSINFO_CONFIG=/etc/sysinfo/config.yaml sysinfo。"
+             data-en="Non-root users read ~/.config/sysinfo/config.yaml first if it exists. Delete it or use SYSINFO_CONFIG=/etc/sysinfo/config.yaml sysinfo.">
+            普通用户会优先读 ~/.config/sysinfo/config.yaml，如果存在就会覆盖系统配置。删掉它，或者指定 SYSINFO_CONFIG=/etc/sysinfo/config.yaml sysinfo。
+          </p>
+        </details>
+        <details class="faq-item">
+          <summary data-zh="推送收不到？" data-en="No push notifications?">推送收不到？</summary>
+          <p data-zh="先跑 sysinfo --notify-test 看通道通不通。确认 notify.enabled 是 true、bark.key 填对了。测试时可以把 threshold 临时改成 0。"
+             data-en="Run sysinfo --notify-test first. Check notify.enabled and bark.key. Temporarily set threshold to 0 for testing.">
+            先跑 sysinfo --notify-test 看通道通不通。确认 notify.enabled 是 true、bark.key 填对了。测试时可以把 threshold 临时改成 0。
+          </p>
+        </details>
+        <details class="faq-item">
+          <summary data-zh="限速没生效？" data-en="Throttling not working?">限速没生效？</summary>
+          <p data-zh="网关模式（开了 IP 转发）默认不限速。需要 tc 命令和 root 权限。跑 bash scripts/test_throttle.sh 看诊断结果。"
+             data-en="Gateway mode (ip_forward) skips throttling by default. Needs tc and root. Run bash scripts/test_throttle.sh.">
+            网关模式（开了 IP 转发）默认不限速。需要 tc 命令和 root 权限。跑 bash scripts/test_throttle.sh 看诊断结果。
+          </p>
+        </details>
+      </div>
+    </article>
+
+    <!-- 开发 -->
+    <article id="dev" class="page">
+      <h1 data-zh="开发测试" data-en="Development">开发测试</h1>
+      <p data-zh="项目根目录有 Makefile，常用命令：" data-en="Use the Makefile in the project root:">项目根目录有 Makefile，常用命令：</p>
+      <table class="data-table">
+        <thead><tr><th data-zh="命令" data-en="Command">命令</th><th data-zh="作用" data-en="Purpose">作用</th></tr></thead>
+        <tbody>
+          <tr><td><code>make</code></td><td data-zh="查看所有命令" data-en="Show all commands">查看所有命令</td></tr>
+          <tr><td><code>make run</code></td><td data-zh="本地跑一次面板" data-en="Run dashboard locally">本地跑一次面板</td></tr>
+          <tr><td><code>make test</code></td><td data-zh="运行自动化测试" data-en="Run automated tests">运行自动化测试</td></tr>
+          <tr><td><code>make install</code></td><td data-zh="安装到系统" data-en="Install to system">安装到系统</td></tr>
+          <tr><td><code>make deploy</code></td><td data-zh="测试通过后安装" data-en="Test then install">测试通过后安装</td></tr>
+          <tr><td><code>make docs-serve</code></td><td data-zh="本地预览文档" data-en="Preview docs locally">本地预览文档</td></tr>
+        </tbody>
+      </table>
+    </article>
+
+  </main>
+</div>
+
+<script src="wiki.js"></script>
+</body>
+</html>

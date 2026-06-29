@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>sysinfo-cli · 轻量级 SSH 系统状态仪表盘</title>
+<meta name="description" content="sysinfo-cli: A lightweight Bash system status dashboard for Debian/Ubuntu — SSH login banner, live monitor, traffic accounting, tc throttling, NAT and modular Bark push notifications." />
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-soft: #161b22;
+    --bg-card: #1b222c;
+    --border: #2d3643;
+    --fg: #e6edf3;
+    --fg-dim: #9aa7b4;
+    --accent: #3fb950;
+    --accent2: #58a6ff;
+    --accent3: #d29922;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent2); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre { font-family: var(--mono); }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+
+  /* Nav */
+  nav { position: sticky; top: 0; z-index: 50; background: rgba(13,17,23,.82); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+  nav .wrap { display: flex; align-items: center; gap: 20px; height: 60px; }
+  .logo { font-weight: 700; font-size: 1.15rem; display: flex; align-items: center; gap: 8px; }
+  .logo .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  .nav-links { margin-left: auto; display: flex; gap: 18px; align-items: center; }
+  .nav-links a { color: var(--fg-dim); font-size: .92rem; }
+  .nav-links a:hover { color: var(--fg); text-decoration: none; }
+  .lang-toggle { border: 1px solid var(--border); background: var(--bg-soft); color: var(--fg); border-radius: 20px; padding: 5px 12px; cursor: pointer; font-size: .82rem; font-family: var(--sans); }
+  .lang-toggle:hover { border-color: var(--accent2); }
+  @media (max-width: 720px) { .nav-links a:not(.gh) { display: none; } }
+
+  /* Hero */
+  header { padding: 70px 0 50px; text-align: center; background:
+      radial-gradient(900px 380px at 50% -120px, rgba(63,185,80,.16), transparent 70%),
+      radial-gradient(700px 320px at 80% 0, rgba(88,166,255,.12), transparent 70%); }
+  .badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 22px; }
+  .badge { font-size: .74rem; color: var(--fg-dim); border: 1px solid var(--border); background: var(--bg-soft); padding: 4px 10px; border-radius: 20px; }
+  h1.title { font-size: clamp(2.2rem, 6vw, 3.4rem); letter-spacing: -1px; line-height: 1.1; }
+  h1.title .grad { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .tagline { color: var(--fg-dim); font-size: clamp(1rem, 2.5vw, 1.25rem); margin: 18px auto 0; max-width: 640px; }
+  .cta { display: flex; gap: 12px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
+  .btn { padding: 11px 22px; border-radius: 8px; font-weight: 600; font-size: .95rem; border: 1px solid transparent; cursor: pointer; }
+  .btn-primary { background: var(--accent); color: #06210d; }
+  .btn-primary:hover { background: #4cc85e; text-decoration: none; }
+  .btn-ghost { border-color: var(--border); color: var(--fg); background: var(--bg-soft); }
+  .btn-ghost:hover { border-color: var(--accent2); text-decoration: none; }
+
+  /* Terminal preview */
+  .terminal { margin: 46px auto 0; max-width: 760px; background: #0a0e14; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.5); text-align: left; }
+  .term-bar { display: flex; align-items: center; gap: 7px; padding: 11px 14px; background: var(--bg-soft); border-bottom: 1px solid var(--border); }
+  .term-bar i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .term-bar i:nth-child(1){background:#ff5f56}.term-bar i:nth-child(2){background:#ffbd2e}.term-bar i:nth-child(3){background:#27c93f}
+  .term-bar span { margin-left: 10px; color: var(--fg-dim); font-size: .78rem; font-family: var(--mono); }
+  .term-body {
+    padding: 16px 20px; margin: 0; font-family: var(--mono); font-size: .78rem;
+    line-height: 1.55; white-space: pre; overflow-x: auto; tab-size: 4;
+    color: var(--fg-dim); background: #0a0e14; border: none;
+  }
+  .term-body .c-g { color: var(--accent); } .term-body .c-b { color: var(--accent2); }
+  .term-body .c-d { color: var(--fg-dim); } .term-body .c-y { color: var(--accent3); }
+  .term-body .bar-f { color: #ffffff; } .term-body .bar-e { color: #444c56; }
+
+  /* Sections */
+  section { padding: 64px 0; border-top: 1px solid var(--border); }
+  .sec-tag { color: var(--accent); font-weight: 700; font-size: .8rem; letter-spacing: 1.5px; text-transform: uppercase; }
+  h2.sec-title { font-size: clamp(1.6rem, 4vw, 2.1rem); margin: 8px 0 10px; letter-spacing: -.5px; }
+  .sec-sub { color: var(--fg-dim); max-width: 620px; margin-bottom: 34px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 22px; transition: transform .15s, border-color .15s; }
+  .card:hover { transform: translateY(-3px); border-color: var(--accent2); }
+  .card .ico { font-size: 1.6rem; }
+  .card h3 { font-size: 1.05rem; margin: 12px 0 6px; }
+  .card p { color: var(--fg-dim); font-size: .9rem; }
+
+  /* Code blocks */
+  pre.code { background: #0a0e14; border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: .85rem; line-height: 1.6; position: relative; }
+  pre.code .cmt { color: var(--fg-dim); }
+  pre.code .k { color: var(--accent2); }
+  .copy { position: absolute; top: 8px; right: 8px; background: var(--bg-soft); border: 1px solid var(--border); color: var(--fg-dim); border-radius: 6px; font-size: .72rem; padding: 3px 9px; cursor: pointer; font-family: var(--sans); }
+  .copy:hover { color: var(--fg); border-color: var(--accent2); }
+  .install-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+  @media (max-width: 800px) { .two-col { grid-template-columns: 1fr; } }
+  ul.rules { list-style: none; }
+  ul.rules li { padding: 10px 0; border-bottom: 1px solid var(--border); color: var(--fg-dim); font-size: .92rem; }
+  ul.rules li b { color: var(--fg); }
+  ul.rules li code { color: var(--accent3); background: var(--bg-soft); padding: 1px 6px; border-radius: 4px; font-size: .82rem; }
+
+  .note { background: linear-gradient(180deg, rgba(63,185,80,.08), transparent); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 14px 18px; color: var(--fg-dim); font-size: .9rem; margin-top: 18px; }
+
+  footer { border-top: 1px solid var(--border); padding: 36px 0; color: var(--fg-dim); font-size: .88rem; }
+  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="logo"><span class="dot"></span> sysinfo-cli</div>
+    <div class="nav-links">
+      <a href="#features" data-en="Features" data-zh="功能">Features</a>
+      <a href="#install" data-en="Install" data-zh="安装">Install</a>
+      <a href="#notify" data-en="Notifications" data-zh="推送">Notifications</a>
+      <a href="#config" data-en="Config" data-zh="配置">Config</a>
+      <a href="wiki.html" data-en="Wiki" data-zh="文档">Wiki</a>
+      <a class="gh" href="https://github.com/baixiaoshengofficial/sysinfo-cli" target="_blank" rel="noopener">GitHub ↗</a>
+      <button class="lang-toggle" id="langBtn">中文</button>
+    </div>
+  </div>
+</nav>
+
+<header>
+  <div class="wrap">
+    <div class="badges">
+      <span class="badge">Bash</span>
+      <span class="badge">Debian / Ubuntu</span>
+      <span class="badge" data-en="Minimal deps" data-zh="极简依赖">Minimal deps</span>
+      <span class="badge">YAML config</span>
+    </div>
+    <h1 class="title">
+      <span data-en="The system dashboard that greets your" data-zh="登录服务器，第一眼就能看到">The system dashboard that greets your</span>
+      <span class="grad" data-en="SSH login" data-zh="系统状态">SSH login</span>
+    </h1>
+    <p class="tagline"
+       data-en="sysinfo-cli is a lightweight Bash dashboard for Debian/Ubuntu — live metrics on login, monthly traffic accounting, tc-based throttling, NAT display and modular Bark push alerts."
+       data-zh="sysinfo-cli 是面向 Debian/Ubuntu 的轻量 Bash 工具——登录自动显示状态、按月统计流量、超配额自动限速，还支持 NAT 展示和手机 Bark 推送。">
+      sysinfo-cli is a lightweight Bash dashboard for Debian/Ubuntu — live metrics on login, monthly traffic accounting, tc-based throttling, NAT display and modular Bark push alerts.
+    </p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#install" data-en="Get Started" data-zh="马上开始">Get Started</a>
+      <a class="btn btn-ghost" href="https://github.com/baixiaoshengofficial/sysinfo-cli" target="_blank" rel="noopener" data-en="View on GitHub" data-zh="GitHub 仓库">View on GitHub</a>
+    </div>
+
+    <div class="terminal">
+      <div class="term-bar"><i></i><i></i><i></i><span>root@server: ~</span></div>
+      <pre class="term-body term-en">================================================================
+  System Information Dashboard - 2026-06-29 17:49:12
+================================================================
+Core Information
+  CPU      : Intel(R) Core(TM) i5-9600 @ 3.10GHz (6 core(s))
+  IPv4     : 10.103.241.153
+  NAT      : 8080-&gt;80  9000-&gt;3000
+  Uptime   : 1 week, 4 days, 4 hours
+Resources
+  Load     : 71.3%                             Procs    : 3725
+  Memory   : 19Gi / 31Gi (62%)
+Network
+  Down     : 55.5 KB/s                         Up       : 0 KB/s
+  Usage    : [<span class="bar-f">█████</span><span class="bar-e">█████</span>] 48%
+  Throttle : Idle (below threshold)
+Disk
+  /                      162G      90G      59% [<span class="bar-f">█████</span><span class="bar-e">█████</span>]
+================================================================</pre>
+      <pre class="term-body term-zh hidden">================================================================
+  系统信息面板 - 2026-06-29 17:49:12
+================================================================
+核心信息
+  CPU      : Intel(R) Core(TM) i5-9600 @ 3.10GHz (6 core(s))
+  IPv4     : 10.103.241.153
+  NAT      : 8080-&gt;80  9000-&gt;3000
+  运行时间 : 1 week, 4 days, 4 hours
+资源使用
+  负载     : 71.3%                             进程数   : 3725
+  内存     : 19Gi / 31Gi (62%)
+网络
+  下载     : 55.5 KB/s                         上传     : 0 KB/s
+  使用率   : [<span class="bar-f">█████</span><span class="bar-e">█████</span>] 48%
+  限速状态 : 未限速 (below threshold)
+磁盘
+  /                      162G      90G      59% [<span class="bar-f">█████</span><span class="bar-e">█████</span>]
+================================================================</pre>
+    </div>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <div class="sec-tag" data-en="Features" data-zh="功能特性">Features</div>
+    <h2 class="sec-title" data-en="Everything you want on login" data-zh="想看的，登录就有">Everything you want on login</h2>
+    <p class="sec-sub" data-en="Built from plain Bash + a couple of standard tools. No agents, no daemons." data-zh="只用 Bash 和几个系统工具，不用装后台服务。">Built from plain Bash + a couple of standard tools. No agents, no daemons.</p>
+    <div class="grid">
+      <div class="card"><div class="ico">🔐</div><h3 data-en="SSH Login Banner" data-zh="登录自动显示">SSH Login Banner</h3><p data-en="Auto-shows status on login for both bash (/etc/profile.d) and zsh (/etc/zsh/zprofile)." data-zh="SSH 登录后自动弹出状态面板，bash 和 zsh 都支持。">Auto-shows status on login for bash and zsh.</p></div>
+      <div class="card"><div class="ico">📊</div><h3 data-en="Live Monitor" data-zh="实时监控">Live Monitor</h3><p data-en="Run sysinfo for an in-place refreshing dashboard with no screen flicker." data-zh="运行 sysinfo 打开刷新式面板，不会闪屏。">In-place refreshing dashboard, no flicker.</p></div>
+      <div class="card"><div class="ico">🌐</div><h3 data-en="Network Speed" data-zh="网速监控">Network Speed</h3><p data-en="Real-time up/down speed with auto KB/s ↔ MB/s conversion." data-zh="实时显示上传/下载速度，自动换算单位。">Real-time up/down speed.</p></div>
+      <div class="card"><div class="ico">📈</div><h3 data-en="Traffic & Throttling" data-zh="流量统计与限速">Traffic &amp; Throttling</h3><p data-en="Monthly traffic accounting; automatic tc rate-limiting above a threshold." data-zh="按月统计流量，快到上限时自动限速。">Monthly accounting + auto tc limiting.</p></div>
+      <div class="card"><div class="ico">🔀</div><h3 data-en="NAT Mappings" data-zh="NAT 端口映射">NAT Mappings</h3><p data-en="Display and configure NAT port mappings right on the dashboard." data-zh="在面板上展示端口映射，一目了然。">Display & configure NAT mappings.</p></div>
+      <div class="card"><div class="ico">🔔</div><h3 data-en="Push Notifications" data-zh="手机推送">Push Notifications</h3><p data-en="Modular Bark alerts for CPU, traffic quota, NIC speed, throttle and disk." data-zh="通过 Bark 把 CPU、流量、网速、限速、磁盘告警推到手机。">Modular Bark alerts for 5 rule types.</p></div>
+      <div class="card"><div class="ico">🌏</div><h3 data-en="Multi-language" data-zh="中英文切换">Multi-language</h3><p data-en="Chinese / English UI, switchable via config (auto / zh / en)." data-zh="中文/英文界面，配置文件里一键切换。">Chinese / English UI, config switchable.</p></div>
+      <div class="card"><div class="ico">⚙️</div><h3 data-en="YAML Config" data-zh="YAML 配置">YAML Config</h3><p data-en="One readable config file at /etc/sysinfo/config.yaml, applied with -c / -r." data-zh="一个 YAML 文件管全部，改完 sysinfo -r 就生效。">One readable config, applied with -c / -r.</p></div>
+      <div class="card"><div class="ico">🪶</div><h3 data-en="Lightweight" data-zh="足够轻量">Lightweight</h3><p data-en="Just yq + iproute2. Fast one-shot render, safe for login shells." data-zh="只需要 yq 和 iproute2，渲染快，登录也安全。">Just yq + iproute2, fast & safe.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <div class="sec-tag" data-en="Install" data-zh="安装">Install</div>
+    <h2 class="sec-title" data-en="Up and running in seconds" data-zh="几条命令就装好">Up and running in seconds</h2>
+    <p class="sec-sub" data-en="Pick any method. The installer pulls dependencies and sets up the login banner." data-zh="任选一种方式，脚本会自动装依赖并配置登录横幅。">Pick any method. The installer pulls dependencies and sets up the login banner.</p>
+    <div class="install-grid">
+      <pre class="code"><button class="copy">copy</button><span class="cmt"># <span data-en="1) One-liner (baixiaosheng.de)" data-zh="1) 一键安装（baixiaosheng.de）">1) One-liner (baixiaosheng.de)</span></span>
+bash <(curl -sSL baixiaosheng.de/sysinfo)</pre>
+      <pre class="code"><button class="copy">copy</button><span class="cmt"># <span data-en="2) Via GitHub" data-zh="2) 通过 GitHub">2) Via GitHub</span></span>
+curl -sSL https://raw.githubusercontent.com/baixiaoshengofficial/sysinfo-cli/main/install.sh | bash</pre>
+      <pre class="code"><button class="copy">copy</button><span class="cmt"># <span data-en="3) Clone & install" data-zh="3) 克隆后安装">3) Clone &amp; install</span></span>
+git clone https://github.com/baixiaoshengofficial/sysinfo-cli.git
+cd sysinfo-cli &amp;&amp; ./install.sh            <span class="cmt"># --lang zh|en, --overwrite-config</span></pre>
+    </div>
+    <div class="note" data-en="Re-running ./install.sh keeps your existing /etc/sysinfo/config.yaml. Pass --overwrite-config to reset it to the template (old one is backed up)." data-zh="重复安装不会覆盖你改过的 config.yaml。想恢复默认模板就加 --overwrite-config（旧配置会自动备份）。">Re-running ./install.sh keeps your existing config. Pass --overwrite-config to reset it (old one is backed up).</div>
+  </div>
+</section>
+
+<section id="notify">
+  <div class="wrap">
+    <div class="sec-tag" data-en="Notifications" data-zh="推送通知">Notifications</div>
+    <h2 class="sec-title" data-en="Get pinged before things break" data-zh="出问题之前，手机先响">Get pinged before things break</h2>
+    <p class="sec-sub" data-en="A modular alerting layer (Bark today). Rules are edge-triggered with a cooldown so you never get spammed." data-zh="通过 Bark 推送到手机。只在状态变化时告警，还有冷却时间，不会刷屏。">A modular alerting layer (Bark today). Edge-triggered with cooldown, so no spam.</p>
+    <div class="two-col">
+      <ul class="rules">
+        <li><b>CPU</b> — <span data-en="fire when CPU usage % reaches threshold" data-zh="CPU 使用率超过设定值">fire when CPU usage % reaches threshold</span></li>
+        <li><b>Net</b> — <span data-en="monthly traffic quota % reaches threshold" data-zh="本月流量用到配额的百分之几">monthly traffic quota % reaches threshold</span></li>
+        <li><b>NIC</b> — <span data-en="throughput reaches % of bandwidth;" data-zh="网速达到带宽的百分之几；">throughput reaches % of bandwidth;</span> <code>mode: upload|download|both</code></li>
+        <li><b>Throttle</b> — <span data-en="fire when rate-limiting becomes active" data-zh="自动限速被触发时">fire when rate-limiting becomes active</span></li>
+        <li><b>Disk</b> — <span data-en="usage % reaches threshold;" data-zh="磁盘使用率超过设定值；">usage % reaches threshold;</span> <code>paths: [...]</code></li>
+      </ul>
+      <div>
+        <pre class="code"><button class="copy">copy</button><span class="cmt"># <span data-en="test the channel" data-zh="测试推送通道">test the channel</span></span>
+sysinfo --notify-test
+
+<span class="cmt"># <span data-en="evaluate rules (cron)" data-zh="评估规则（cron）">evaluate rules (cron)</span></span>
+sysinfo --notify-check
+<span class="cmt"># */5 * * * * /usr/local/bin/sysinfo --notify-check</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="config">
+  <div class="wrap">
+    <div class="sec-tag" data-en="Configuration" data-zh="配置">Configuration</div>
+    <h2 class="sec-title" data-en="One YAML to rule it all" data-zh="一个配置文件搞定">One YAML to rule it all</h2>
+    <p class="sec-sub"><code>/etc/sysinfo/config.yaml</code> — <span data-en="edit, then apply with sudo sysinfo -r" data-zh="改完执行 sudo sysinfo -r 即可生效">edit, then apply with sudo sysinfo -r</span>.</p>
+    <pre class="code"><button class="copy">copy</button>traffic:
+  enabled: true
+  limit: "1T"               <span class="cmt"># 1T, 500G, 100M, UNLIMITED</span>
+  reset_day: 1
+  mode: "both"              <span class="cmt"># upload | download | both</span>
+
+throttle:
+  enabled: true
+  threshold: 95             <span class="cmt"># %</span>
+  rate: "10mbps"
+
+display:
+  language: "auto"          <span class="cmt"># auto | zh | en</span>
+  show_traffic: true
+  show_nat: true
+  show_throttle: true
+
+notify:
+  enabled: false
+  bark: { url: "https://api.day.app", key: "" }
+  cooldown: 1800
+  rules:
+    cpu:      { enabled: false, threshold: 90 }
+    net:      { enabled: false, threshold: 90 }
+    nic:      { enabled: false, threshold: 80, mode: both, upload_rate: 0, download_rate: 0 }
+    throttle: { enabled: false }
+    disk:     { enabled: false, threshold: 90, paths: [] }</pre>
+    <div class="note"><span data-en="Full reference and troubleshooting in the" data-zh="详细说明和排错请看">Full reference and troubleshooting in the</span> <a href="wiki.html" data-en="Wiki ↗" data-zh="Wiki 文档 ↗">Wiki ↗</a>.</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>sysinfo-cli · <span data-en="lightweight system dashboard" data-zh="轻量系统状态面板">lightweight system dashboard</span></div>
+    <div>
+      <a href="https://github.com/baixiaoshengofficial/sysinfo-cli" target="_blank" rel="noopener">GitHub</a> ·
+      <a href="wiki.html">Wiki</a> ·
+      <a href="../README.md">README</a> ·
+      <a href="../README_zh.md">中文说明</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Language toggle: swap text of any element carrying data-en / data-zh.
+  (function () {
+    var lang = localStorage.getItem('sysinfo-lang') ||
+      ((navigator.language || '').startsWith('zh') ? 'zh' : 'en');
+    var btn = document.getElementById('langBtn');
+    function apply(l) {
+      document.documentElement.lang = (l === 'zh') ? 'zh-CN' : 'en';
+      document.querySelectorAll('[data-en]').forEach(function (el) {
+        var v = el.getAttribute('data-' + l);
+        if (v !== null) el.textContent = v;
+      });
+      document.querySelectorAll('.term-en, .term-zh').forEach(function (el) {
+        el.classList.toggle('hidden', !el.classList.contains('term-' + l));
+      });
+      btn.textContent = (l === 'zh') ? 'EN' : '中文';
+      localStorage.setItem('sysinfo-lang', l);
+      lang = l;
+    }
+    btn.addEventListener('click', function () { apply(lang === 'zh' ? 'en' : 'zh'); });
+    apply(lang);
+  })();
+
+  // Copy buttons for code blocks.
+  document.querySelectorAll('pre.code .copy').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var pre = b.parentElement.cloneNode(true);
+      pre.querySelector('.copy').remove();
+      navigator.clipboard.writeText(pre.textContent.trim()).then(function () {
+        var t = b.textContent; b.textContent = '✓'; setTimeout(function () { b.textContent = t; }, 1200);
+      });
+    });
+  });
+</script>
+</body>
+</html>

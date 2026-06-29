@@ -1,4 +1,4 @@
-# SysInfo Configuration File Example
+# sysinfo-cli Configuration File Example
 # Copy to /etc/sysinfo/config.yaml and customize as needed.
 
 # Network Interface Configuration
@@ -34,6 +34,8 @@ throttle:
 
 # Display Configuration
 display:
+  # Dashboard language: auto (follow system locale), zh (Chinese), en (English)
+  language: "auto"
   # Refresh interval in seconds (1-60)
   refresh_interval: 1
   # Show traffic statistics
@@ -42,3 +44,45 @@ display:
   show_nat: true
   # Show throttle status
   show_throttle: true
+
+# Push Notification (modular; currently supports Bark). Disabled by default.
+notify:
+  # Master switch for all push notifications
+  enabled: false
+  # Bark provider settings
+  bark:
+    # Bark server base URL (self-hosted or official)
+    url: "https://api.day.app"
+    # Bark device key (required to enable push)
+    key: ""
+  # Minimum seconds between repeated alerts for the same rule (anti-spam)
+  cooldown: 1800
+  # Alert rules — each can be toggled independently. Default: all off.
+  rules:
+    # Trigger when CPU usage % reaches the threshold
+    cpu:
+      enabled: false
+      threshold: 90
+    # Trigger when monthly traffic quota % reaches the threshold
+    net:
+      enabled: false
+      threshold: 90
+    # Trigger when current throughput reaches % of the bandwidth rate.
+    nic:
+      enabled: false
+      threshold: 80
+      # Direction(s) to evaluate: upload | download | both
+      mode: "both"
+      # Custom bandwidth in Mbit/s. 0 = auto-detect from NIC link speed.
+      upload_rate: 0
+      download_rate: 0
+    # Trigger when network rate-limit (throttle) becomes active
+    throttle:
+      enabled: false
+    # Trigger when disk usage % reaches the threshold.
+    disk:
+      enabled: false
+      threshold: 90
+      # Which mounts/directories to watch. Empty = all mounts.
+      # e.g. paths: ["/", "/mnt/data", "/var/log"]
+      paths: []

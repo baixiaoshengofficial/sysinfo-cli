@@ -1,14 +1,17 @@
 #!/bin/bash
 
-# SysInfo-Cli Banner Script for SSH Login
+# sysinfo-cli Banner Script for SSH Login
 # Displays a lightweight one-shot dashboard when a user logs in.
 #
 # This file is installed to /etc/profile.d/ and sourced by /etc/profile on
-# login. Two guards keep it safe:
-#   1. Only render for interactive shells (skip scp/rsync/non-interactive).
+# login. Guards keep it safe:
+#   1. Only render for real login/terminal sessions (skip scp/rsync/ssh cmd).
 #   2. Only render under bash (the script uses bashisms); when sourced by a
 #      non-bash login shell (e.g. dash), bail out cleanly instead of emitting
 #      syntax errors that would abort the rest of /etc/profile.d.
+#
+# Note: during /etc/profile.d sourcing, login shells often lack 'i' in $- yet.
+# Use shopt login_shell / SSH_TTY instead of $- alone.
 
 # When executed directly (e.g. `./sysinfo_banner.sh` or `sysinfo-banner`),
 # always render — no guards. The guards below only apply when this file is
@@ -24,14 +27,41 @@ if [ -z "${BASH_VERSION:-}" ]; then
 fi
 
 if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    # Guard 1: interactive shell only. `$-` contains 'i' for interactive shells.
-    case "$-" in
-        *i*) ;;
-        *) return 0 2>/dev/null || exit 0 ;;
+    # Once per session (profile may source us before .bashrc runs).
+    if [ -n "${SYSINFO_BANNER_SHOWN:-}" ]; then
+        return 0 2>/dev/null || exit 0
+    fi
+
+    # scp / sftp / `ssh host command` — SSH session without an allocated tty.
+    if [[ -n "${SSH_CONNECTION:-}${SSH_CLIENT:-}" ]] && [[ -z "${SSH_TTY:-}" ]]; then
+        return 0 2>/dev/null || exit 0
+    fi
+
+    # SSH/login shells are not interactive yet when /etc/profile.d runs ($- lacks i).
+    if shopt -q login_shell 2>/dev/null || [[ -n "${SSH_TTY:-}" ]]; then
+        :
+    elif case "$-" in *i*) true ;; *) false ;; esac; then
+        :
+    else
+        return 0 2>/dev/null || exit 0
+    fi
+
+    export SYSINFO_BANNER_SHOWN=1
+fi
+
+# Language priority: /etc/sysinfo-lang (set via display.language) > system locale.
+_banner_lang=""
+if [ -f /etc/sysinfo-lang ]; then
+    _banner_lang=$(tr -d ' \t\r\n' < /etc/sysinfo-lang 2>/dev/null)
+fi
+if [ -z "$_banner_lang" ]; then
+    case "${LC_ALL:-${LANG:-}}" in
+        zh*|ZH*) _banner_lang="zh" ;;
+        *) _banner_lang="en" ;;
     esac
 fi
 
-if [[ "${LC_ALL:-${LANG:-}}" == zh* ]]; then
+if [ "$_banner_lang" = "zh" ]; then
     L_TITLE="系统实时监控"
     L_CORE="[核心信息]"
     L_RES="[资源使用]"
@@ -82,8 +112,9 @@ draw_bar() {
     local filled=$((percent / 10))
     local empty=$((10 - filled))
     local i
-    for ((i=0; i<filled; i++)); do printf "■"; done
-    for ((i=0; i<empty; i++)); do printf "□"; done
+    # Solid blocks: white (used) + black (free).
+    for ((i=0; i<filled; i++)); do printf '\033[97m█\033[0m'; done
+    for ((i=0; i<empty; i++)); do printf '\033[30m█\033[0m'; done
 }
 
 CPU_MODEL=$(timeout 1 awk -F': ' '/model name/{print $2; exit}' /proc/cpuinfo 2>/dev/null)
@@ -174,4 +205,7 @@ df -h -x tmpfs -x devtmpfs -x squashfs -x debugfs -x overlay -x efivarfs 2>/dev/
 done
 echo -e "\033[1;36m================================================================\033[0m\n"
 
-exit 0
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    exit 0
+fi
+return 0

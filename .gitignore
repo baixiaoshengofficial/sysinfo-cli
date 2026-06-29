@@ -1,0 +1,5 @@
+# Generated test artifacts
+tests/test_report.md
+tests/test_config.yaml
+tests/validate_config.yaml
+tests/*.log

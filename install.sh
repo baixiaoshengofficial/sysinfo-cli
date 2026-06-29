@@ -1,5 +1,5 @@
 #!/bin/bash
-GITHUB_RAW="https://raw.githubusercontent.com/jokerknight/sysinfo-cli/main"
+GITHUB_RAW="https://raw.githubusercontent.com/baixiaoshengofficial/sysinfo-cli/main"
 LOCAL_SRC_DIR=""
 
 LANG_CHOICE=""
@@ -40,7 +40,12 @@ msg() {
             use_local_core) echo "使用本地 src/sysinfo_core.sh..." ;;
             use_local_main) echo "使用本地 src/sysinfo.sh..." ;;
             use_local_banner) echo "使用本地 src/sysinfo_banner.sh..." ;;
-            not_found) echo "错误：未找到 sysinfo.sh（$SCRIPT_DIR）" ;;
+            use_local_shim) echo "使用本地 src/sysinfo_banner_shim.sh..." ;;
+            apply_config) echo "应用配置..." ;;
+            apply_config_ok) echo "  ✓ 配置已应用" ;;
+            config_kept) echo "  ✓ 已保留现有配置 /etc/sysinfo/config.yaml (如需重置: --overwrite-config)" ;;
+            config_overwritten) echo "  ✓ 已用模板覆盖配置 (旧配置已备份为 config.yaml.bak.*)" ;;
+            reinstall_hint) echo "更新时请重新执行: sudo ./install.sh" ;;
             *) echo "$key" ;;
         esac
     else
@@ -58,6 +63,12 @@ msg() {
             use_local_core) echo "Using local src/sysinfo_core.sh..." ;;
             use_local_main) echo "Using local src/sysinfo.sh..." ;;
             use_local_banner) echo "Using local src/sysinfo_banner.sh..." ;;
+            use_local_shim) echo "Using local src/sysinfo_banner_shim.sh..." ;;
+            apply_config) echo "Applying configuration..." ;;
+            apply_config_ok) echo "  ✓ Configuration applied" ;;
+            config_kept) echo "  ✓ Kept existing /etc/sysinfo/config.yaml (reset with --overwrite-config)" ;;
+            config_overwritten) echo "  ✓ Config overwritten from template (old one backed up as config.yaml.bak.*)" ;;
+            reinstall_hint) echo "To update, re-run: sudo ./install.sh" ;;
             not_found) echo "Error: sysinfo.sh not found in $SCRIPT_DIR" ;;
             *) echo "$key" ;;
         esac
@@ -127,8 +138,9 @@ check_and_install_deps() {
 print_usage() {
     if [ "$INSTALL_LANG" = "zh" ]; then
         echo "用法："
-        echo "  ./install.sh                 - 安装 sysinfo-cli（默认）"
+        echo "  ./install.sh                 - 安装 sysinfo-cli（默认，保留已有配置）"
         echo "  ./install.sh --lang zh|en    - 指定安装语言"
+        echo "  ./install.sh --overwrite-config - 用模板覆盖配置（自动备份旧配置）"
         echo "  ./install.sh --help          - 显示帮助"
         echo ""
         echo "安装后可使用 'sysinfo'："
@@ -149,10 +161,13 @@ print_usage() {
         echo "其他命令："
         echo "  sysinfo -h              - 查看帮助"
         echo "  sysinfo --reset-traffic - 重置流量统计"
+        echo ""
+        msg reinstall_hint
     else
         echo "Usage:"
-        echo "  ./install.sh                 - Install sysinfo-cli (default)"
+        echo "  ./install.sh                 - Install sysinfo-cli (default, keeps existing config)"
         echo "  ./install.sh --lang zh|en    - Set installation language"
+        echo "  ./install.sh --overwrite-config - Overwrite config from template (old one backed up)"
         echo "  ./install.sh --help          - Show help"
         echo ""
         echo "After installation, use 'sysinfo' to:"
@@ -173,6 +188,8 @@ print_usage() {
         echo "Other options:"
         echo "  sysinfo -h              - Show sysinfo help"
         echo "  sysinfo --reset-traffic - Reset traffic stats"
+        echo ""
+        msg reinstall_hint
     fi
 }
 
@@ -198,6 +215,9 @@ while [ "$#" -gt 0 ]; do
             ;;
         --lang=*)
             LANG_CHOICE="${1#*=}"
+            ;;
+        --overwrite-config|--reset-config)
+            OVERWRITE_CONFIG="true"
             ;;
     esac
     shift
@@ -238,8 +258,9 @@ fi
 sudo rm -f /var/tmp/sysinfo_throttle_state
 
 sudo rm -f /etc/profile.d/sysinfo.sh /etc/profile.d/sysinfo-main.sh \
-         /usr/local/bin/sysinfo /usr/local/bin/sysinfo-main \
-         /etc/sysinfo-lang /etc/sysinfo-nat /etc/sysinfo-traffic /etc/sysinfo-traffic.json
+         /usr/local/bin/sysinfo /usr/local/bin/sysinfo-main
+# Regenerate traffic JSON from YAML on install (preserve config.yaml if present).
+sudo rm -f /etc/sysinfo-traffic /etc/sysinfo-traffic.json
 sudo rm -f /var/tmp/sysinfo_net_stats_*
 
 msg start_install
@@ -261,6 +282,23 @@ else
 fi
 sudo chmod +x /etc/profile.d/sysinfo_core.sh
 
+# Also install core next to the CLI so /usr/local/bin/sysinfo always finds it
+# even when /etc/profile.d/ is missing or incomplete.
+sudo cp /etc/profile.d/sysinfo_core.sh /usr/local/bin/sysinfo_core.sh
+sudo chmod +x /usr/local/bin/sysinfo_core.sh
+
+# Install push-notification module (sourced on demand by the CLI).
+if [[ "${BASH_SOURCE[0]}" == /dev/fd/* ]]; then
+    echo "Downloading sysinfo_notify.sh from $GITHUB_RAW/src/sysinfo_notify.sh..."
+    sudo curl -sSL "$GITHUB_RAW/src/sysinfo_notify.sh" -o /usr/local/bin/sysinfo_notify.sh
+elif [ -f "$LOCAL_SRC_DIR/sysinfo_notify.sh" ]; then
+    sudo cp "$LOCAL_SRC_DIR/sysinfo_notify.sh" /usr/local/bin/sysinfo_notify.sh
+else
+    echo "Downloading sysinfo_notify.sh from $GITHUB_RAW/src/sysinfo_notify.sh..."
+    sudo curl -sSL "$GITHUB_RAW/src/sysinfo_notify.sh" -o /usr/local/bin/sysinfo_notify.sh
+fi
+sudo chmod +x /usr/local/bin/sysinfo_notify.sh
+
 # Install sysinfo.sh (CLI tool only, not for profile.d)
 if [[ "${BASH_SOURCE[0]}" == /dev/fd/* ]]; then
     echo "Downloading sysinfo.sh from $GITHUB_RAW/src/sysinfo.sh..."
@@ -274,18 +312,40 @@ else
 fi
 sudo chmod +x /usr/local/bin/sysinfo-cli.sh
 
-# Install sysinfo_banner.sh (SSH login banner only)
+# Install sysinfo_banner.sh (SSH login banner — bash renderer)
+sudo mkdir -p /usr/local/lib/sysinfo
 if [[ "${BASH_SOURCE[0]}" == /dev/fd/* ]]; then
     echo "Downloading sysinfo_banner.sh from $GITHUB_RAW/src/sysinfo_banner.sh..."
-    sudo curl -sSL "$GITHUB_RAW/src/sysinfo_banner.sh" -o /etc/profile.d/sysinfo-banner.sh
+    sudo curl -sSL "$GITHUB_RAW/src/sysinfo_banner.sh" -o /usr/local/lib/sysinfo/sysinfo_banner.sh
 elif [ -f "$LOCAL_SRC_DIR/sysinfo_banner.sh" ]; then
     msg use_local_banner
-    sudo cp "$LOCAL_SRC_DIR/sysinfo_banner.sh" /etc/profile.d/sysinfo-banner.sh
+    sudo cp "$LOCAL_SRC_DIR/sysinfo_banner.sh" /usr/local/lib/sysinfo/sysinfo_banner.sh
 else
     echo "Downloading sysinfo_banner.sh from $GITHUB_RAW/src/sysinfo_banner.sh..."
-    sudo curl -sSL "$GITHUB_RAW/src/sysinfo_banner.sh" -o /etc/profile.d/sysinfo-banner.sh
+    sudo curl -sSL "$GITHUB_RAW/src/sysinfo_banner.sh" -o /usr/local/lib/sysinfo/sysinfo_banner.sh
+fi
+sudo chmod +x /usr/local/lib/sysinfo/sysinfo_banner.sh
+
+# POSIX shim for /etc/profile.d (bash) and /etc/zsh/zprofile (zsh login shells)
+if [[ "${BASH_SOURCE[0]}" == /dev/fd/* ]]; then
+    sudo curl -sSL "$GITHUB_RAW/src/sysinfo_banner_shim.sh" -o /etc/profile.d/sysinfo-banner.sh
+elif [ -f "$LOCAL_SRC_DIR/sysinfo_banner_shim.sh" ]; then
+    msg use_local_shim
+    sudo cp "$LOCAL_SRC_DIR/sysinfo_banner_shim.sh" /etc/profile.d/sysinfo-banner.sh
+else
+    sudo curl -sSL "$GITHUB_RAW/src/sysinfo_banner_shim.sh" -o /etc/profile.d/sysinfo-banner.sh
 fi
 sudo chmod +x /etc/profile.d/sysinfo-banner.sh 2>/dev/null
+
+# zsh does not source /etc/profile.d — hook the same shim from zprofile
+ZPROFILE_MARK="# sysinfo-cli banner"
+if ! sudo grep -qF "$ZPROFILE_MARK" /etc/zsh/zprofile 2>/dev/null; then
+    sudo tee -a /etc/zsh/zprofile >/dev/null <<'EOF'
+
+# sysinfo-cli banner
+[ -r /etc/profile.d/sysinfo-banner.sh ] && . /etc/profile.d/sysinfo-banner.sh
+EOF
+fi
 
 # Create /usr/local/bin/sysinfo wrapper. Keep a thin wrapper instead of
 # duplicating CLI logic, so installed behavior stays aligned with sysinfo.sh.
@@ -295,109 +355,39 @@ exec /usr/local/bin/sysinfo-cli.sh "$@"
 CMD
 sudo chmod +x /usr/local/bin/sysinfo
 
-# Persist language selection for runtime dashboard/help
+# Persist language selection for runtime dashboard/help (seed before apply)
 echo "$INSTALL_LANG" | sudo tee /etc/sysinfo-lang >/dev/null
 
-# Generate default YAML configuration
+# Default YAML — by default keep existing file on reinstall so custom settings
+# survive updates. Use --overwrite-config to reset it to the shipped template.
+# On (re)generation, bake the chosen language into the config so it is the
+# single source of truth (config.yaml's display.language drives /etc/sysinfo-lang).
 msg gen_config
 sudo mkdir -p /etc/sysinfo
+if [ ! -f /etc/sysinfo/config.yaml ]; then
+    sudo cp "$SCRIPT_DIR/config.yaml.example" /etc/sysinfo/config.yaml
+    sudo sed -i "s/^\(\s*language:\).*/\1 \"$INSTALL_LANG\"/" /etc/sysinfo/config.yaml
+elif [ "${OVERWRITE_CONFIG:-false}" = "true" ]; then
+    # Back up the old config before replacing it.
+    sudo cp /etc/sysinfo/config.yaml "/etc/sysinfo/config.yaml.bak.$(date +%Y%m%d%H%M%S)"
+    sudo cp "$SCRIPT_DIR/config.yaml.example" /etc/sysinfo/config.yaml
+    sudo sed -i "s/^\(\s*language:\).*/\1 \"$INSTALL_LANG\"/" /etc/sysinfo/config.yaml
+    msg config_overwritten
+else
+    msg config_kept
+fi
 
-sudo tee /etc/sysinfo/config.yaml > /dev/null << 'EOF'
-# SysInfo Configuration File
-# Default configuration (auto-generated on install)
-
-# Network Interface Configuration
-network:
-  # Interface to monitor (leave empty for auto-detection)
-  interface: ""
-  # Force throttle on gateway mode (ip_forward=1) - USE WITH CAUTION
-  force_gateway_throttle: false
-
-# NAT Port Mappings
-nat:
-  enabled: false
-  # Port mappings: public-port:private-port
-  mappings: []
-
-# Traffic Limit Configuration
-traffic:
-  enabled: true
-  # Monthly traffic limit: 1T, 500G, 100M, or UNLIMITED
-  limit: "1T"
-  # Day of month to reset traffic (1-31)
-  reset_day: 1
-  # Traffic mode: upload, download, or both
-  mode: "both"
-
-# Throttle Configuration (applied when traffic usage exceeds threshold)
-throttle:
-  enabled: true
-  # Traffic percentage to trigger throttling (0-100)
-  threshold: 95
-  # Rate limit when throttled: 10mbps, 5mbps, 1mbps, etc. (minimum: 1mbps)
-  rate: "10mbps"
-
-# Display Configuration
-display:
-  # Refresh interval in seconds (1-60)
-  refresh_interval: 1
-  # Show traffic statistics
-  show_traffic: true
-  # Show NAT port mappings
-  show_nat: true
-  # Show throttle status
-  show_throttle: true
-EOF
+# Apply config (traffic + throttle JSON, NAT, etc.)
+msg apply_config
+if sudo /usr/local/bin/sysinfo -r >/dev/null 2>&1; then
+    msg apply_config_ok
+else
+    echo "  (run: sysinfo -r)"
+fi
 
 echo ""
 echo "============================================"
 msg done
 echo "============================================"
-echo ""
-if [ "$INSTALL_LANG" = "zh" ]; then
-    echo "用法："
-    echo "  sysinfo              - 实时监控（1 秒刷新）"
-    echo "  sysinfo 5            - 实时监控（5 秒刷新）"
-    echo ""
-    echo "配置："
-    echo "  重载配置：           sysinfo -r"
-    echo "  编辑 YAML 配置：     sudo nano /etc/sysinfo/config.yaml"
-    echo "  应用配置：           sysinfo -c /etc/sysinfo/config.yaml"
-    echo ""
-    echo "配置文件位置："
-    echo "  /etc/sysinfo/config.yaml"
-    echo ""
-    echo "默认配置："
-    echo "  - 月流量上限：1T"
-    echo "  - 每月重置日：1号"
-    echo "  - 流量模式：both（上行+下行）"
-    echo "  - 达到 95% 后按 10mbps 限速"
-    echo ""
-    echo "其他命令："
-    echo "  sysinfo -h              - 查看帮助"
-    echo "  sysinfo --reset-traffic - 重置流量统计"
-else
-    echo "Usage:"
-    echo "  sysinfo              - Real-time monitoring (1s refresh)"
-    echo "  sysinfo 5            - Real-time monitoring (5s refresh)"
-    echo ""
-    echo "Configuration:"
-    echo "  Reload config:      sysinfo -r"
-    echo "  Edit YAML config:   sudo nano /etc/sysinfo/config.yaml"
-    echo "  Apply config:      sysinfo -c /etc/sysinfo/config.yaml"
-    echo ""
-    echo "Configuration file location:"
-    echo "  /etc/sysinfo/config.yaml"
-    echo ""
-    echo "Default configuration:"
-    echo "  - Monthly traffic limit: 1T"
-    echo "  - Reset day: 1st of each month"
-    echo "  - Traffic mode: both (upload + download)"
-    echo "  - Throttle enabled at 95% with 10mbps limit"
-    echo ""
-    echo "Other commands:"
-    echo "  sysinfo -h           - Show help"
-    echo "  sysinfo --reset-traffic - Reset traffic stats"
-fi
 echo ""
 print_usage

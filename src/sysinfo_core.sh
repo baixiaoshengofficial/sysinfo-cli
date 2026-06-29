@@ -74,29 +74,53 @@ stats_get_str() {
     grep -o "\"$key\":\"[^\"]*\"" "$SYSINFO_STATS_FILE" 2>/dev/null | cut -d'"' -f4
 }
 
-# Approximate display width for UTF-8 labels (ASCII=1, non-ASCII=2)
+# Terminal display width for UTF-8 labels.
+# ASCII/narrow = 1 column, CJK (3-byte) = 2 columns. Derived from the byte
+# vs. character count so it is locale-independent (awk length() counts bytes
+# on mawk and would mis-size CJK labels, breaking colon alignment).
 display_width() {
     local text="$1"
-    local chars non_ascii
-    chars=$(printf "%s" "$text" | awk '{print length($0)}')
-    non_ascii=$(printf "%s" "$text" | sed 's/[ -~]//g' | awk '{print length($0)}')
-
-    [[ "$chars" =~ ^[0-9]+$ ]] || chars=0
-    [[ "$non_ascii" =~ ^[0-9]+$ ]] || non_ascii=0
-    echo $((chars + non_ascii))
+    local bytes chars
+    bytes=$(printf '%s' "$text" | wc -c)
+    chars=$(printf '%s' "$text" | LC_ALL=C.UTF-8 wc -m)
+    bytes=${bytes//[^0-9]/}
+    chars=${chars//[^0-9]/}
+    [ -n "$bytes" ] || bytes=0
+    [ -n "$chars" ] || chars=0
+    # Wide chars (3+ extra bytes over 1) add one extra column each.
+    echo $(( chars + (bytes - chars) / 2 ))
 }
 
 # Pad a label to a target display width (accounting for double-width CJK).
 pad_label() {
     local text="$1"
     local target=${2:-14}
-    local width spaces
+    local width spaces i
 
     width=$(display_width "$text")
     spaces=$((target - width))
     [ "$spaces" -lt 0 ] && spaces=0
 
-    printf "%s%*s" "$text" "$spaces" ""
+    printf "%s" "$text"
+    for ((i = 0; i < spaces; i++)); do
+        printf ' '
+    done
+}
+
+# Right-justify a label to a target display width (CJK-aware).
+pad_label_right() {
+    local text="$1"
+    local target=${2:-8}
+    local width spaces i
+
+    width=$(display_width "$text")
+    spaces=$((target - width))
+    [ "$spaces" -lt 0 ] && spaces=0
+
+    for ((i = 0; i < spaces; i++)); do
+        printf ' '
+    done
+    printf "%s" "$text"
 }
 
 calc_label_width() {
@@ -107,7 +131,24 @@ calc_label_width() {
         w=$(display_width "$item")
         [ "$w" -gt "$max" ] && max=$w
     done
-    echo $((max + 1))
+    echo "$max"
+}
+
+# Dashboard layout: fixed label + value columns for aligned colons.
+# VAL_W = width of the primary value column in two-column rows.
+: "${SYSINFO_VAL_W:=32}"
+
+dash_kv() {
+    local label=$1 value=$2 label_w=$3
+    printf "  %s : %b\n" "$(pad_label "$label" "$label_w")" "$value"
+}
+
+dash_kv2() {
+    local l1=$1 v1=$2 l2=$3 v2=$4 label_w=$5
+    local vw=${6:-$SYSINFO_VAL_W}
+    printf "  %s : %-${vw}s  %s : %s\n" \
+        "$(pad_label "$l1" "$label_w")" "$v1" \
+        "$(pad_label "$l2" "$label_w")" "$v2"
 }
 
 detect_lang() {
@@ -141,8 +182,13 @@ detect_lang() {
 : "${SYSINFO_SHOW_NAT:=true}"
 : "${SYSINFO_SHOW_THROTTLE:=true}"
 
-# i18n labels (load from /etc/sysinfo-lang first, then env locale)
-SYSINFO_LANG="$(detect_lang)"
+# i18n labels. Priority: explicit SYSINFO_LANG env (set from display.language
+# by the CLI) > /etc/sysinfo-lang > system locale.
+case "$(tolower "${SYSINFO_LANG:-}")" in
+    zh|zh-cn|cn|chinese) SYSINFO_LANG="zh" ;;
+    en|en-us|english) SYSINFO_LANG="en" ;;
+    *) SYSINFO_LANG="$(detect_lang)" ;;
+esac
 if [ "$SYSINFO_LANG" = "zh" ]; then
     : "${L_TITLE:=系统信息面板}"
     : "${L_CORE:=核心信息}"
@@ -164,7 +210,9 @@ if [ "$SYSINFO_LANG" = "zh" ]; then
     : "${L_LIMIT:=配额}"
     : "${L_TRAFFIC_MODE:=流量模式}"
     : "${L_TRAFFIC_PERC:=使用率}"
-    : "${L_THROTTLE:=限速}"
+    : "${L_THROTTLE_ENABLE:=限速开关}"
+    : "${L_THROTTLE_STATUS:=限速状态}"
+    : "${L_THROTTLE_RULE:=限速规则}"
     : "${L_DISK:=磁盘}"
     : "${L_MNT:=挂载点}"
     : "${L_SIZE:=总量}"
@@ -192,7 +240,9 @@ else
     : "${L_LIMIT:=Quota}"
     : "${L_TRAFFIC_MODE:=Traffic Mode}"
     : "${L_TRAFFIC_PERC:=Usage}"
-    : "${L_THROTTLE:=Throttle}"
+    : "${L_THROTTLE_ENABLE:=Throttle}"
+    : "${L_THROTTLE_STATUS:=Throttle Status}"
+    : "${L_THROTTLE_RULE:=Throttle Rule}"
     : "${L_DISK:=Disk}"
     : "${L_MNT:=Mount}"
     : "${L_SIZE:=Size}"
@@ -242,11 +292,12 @@ draw_bar() {
     local empty=$((width - filled))
     local i
 
+    # Solid blocks: white (used) + black (free).
     for ((i=0; i<filled; i++)); do
-        printf "■"
+        printf '\033[97m█\033[0m'
     done
     for ((i=0; i<empty; i++)); do
-        printf "□"
+        printf '\033[30m█\033[0m'
     done
 }
 
@@ -296,7 +347,9 @@ remove_active_tc_limit() {
         fi
     done <<< "$interfaces"
     if ip link show dev "$SYSINFO_IFB_DEV" >/dev/null 2>&1; then
-        run_privileged tc qdisc del dev "$SYSINFO_IFB_DEV" root >/dev/null 2>&1
+        run_privileged tc qdisc del dev "$SYSINFO_IFB_DEV" root >/dev/null 2>&1 || true
+        run_privileged ip link set dev "$SYSINFO_IFB_DEV" down >/dev/null 2>&1 || true
+        run_privileged ip link del "$SYSINFO_IFB_DEV" >/dev/null 2>&1 || true
     fi
 }
 
@@ -400,7 +453,19 @@ update_traffic_stats() {
     traffic_mode=$(stats_get_str "traffic_mode"); traffic_mode=${traffic_mode:-both}
 
     local current_time=$(date +%s)
+    _SYSINFO_RUNTIME_RX=$rx_bytes
+    _SYSINFO_RUNTIME_TX=$tx_bytes
+
+    local persist_ts_file="/var/tmp/sysinfo_traffic_persist_ts_${USER:-root}"
+    local last_persist=0
+    [ -f "$persist_ts_file" ] && last_persist=$(cat "$persist_ts_file" 2>/dev/null)
+    [[ "$last_persist" =~ ^[0-9]+$ ]] || last_persist=0
+    if [ $((current_time - last_persist)) -lt 5 ]; then
+        return 0
+    fi
+
     printf '%s\n' "{\"start_time\":$start_time,\"rx_bytes\":$rx_bytes,\"tx_bytes\":$tx_bytes,\"last_rx\":$current_rx,\"last_tx\":$current_tx,\"traffic_mode\":\"$traffic_mode\",\"last_update\":$current_time}" | run_privileged tee "$SYSINFO_STATS_FILE" >/dev/null 2>&1
+    echo "$current_time" > "$persist_ts_file" 2>/dev/null
 }
 
 # Compute the cycle reset timestamp (reset_day 00:00) for the billing cycle
@@ -450,10 +515,15 @@ get_traffic_stats() {
         limit_bytes=0
     fi
 
-    # Read accumulated counters.
+    # Read accumulated counters (prefer in-memory values from recent updates).
     local rx_bytes tx_bytes
-    rx_bytes=$(stats_get_num "rx_bytes"); rx_bytes=${rx_bytes:-0}
-    tx_bytes=$(stats_get_num "tx_bytes"); tx_bytes=${tx_bytes:-0}
+    if [[ "${_SYSINFO_RUNTIME_RX:-}" =~ ^[0-9]+$ ]] && [[ "${_SYSINFO_RUNTIME_TX:-}" =~ ^[0-9]+$ ]]; then
+        rx_bytes=$_SYSINFO_RUNTIME_RX
+        tx_bytes=$_SYSINFO_RUNTIME_TX
+    else
+        rx_bytes=$(stats_get_num "rx_bytes"); rx_bytes=${rx_bytes:-0}
+        tx_bytes=$(stats_get_num "tx_bytes"); tx_bytes=${tx_bytes:-0}
+    fi
 
     # Total depends on which direction(s) are accounted.
     local traffic_mode
@@ -483,12 +553,20 @@ get_traffic_stats() {
         TRAFFIC_PERC=""
     fi
 
-    # Set traffic mode for display
-    case "$traffic_mode" in
-        upload) TRAFFIC_MODE="Upload Only" ;;
-        download) TRAFFIC_MODE="Download Only" ;;
-        both|*) TRAFFIC_MODE="Bi-directional" ;;
-    esac
+    # Set traffic mode for display (localized)
+    if [ "$SYSINFO_LANG" = "zh" ]; then
+        case "$traffic_mode" in
+            upload) TRAFFIC_MODE="仅上行" ;;
+            download) TRAFFIC_MODE="仅下行" ;;
+            both|*) TRAFFIC_MODE="双向" ;;
+        esac
+    else
+        case "$traffic_mode" in
+            upload) TRAFFIC_MODE="Upload Only" ;;
+            download) TRAFFIC_MODE="Download Only" ;;
+            both|*) TRAFFIC_MODE="Bi-directional" ;;
+        esac
+    fi
 
     return 0
 }
@@ -657,6 +735,18 @@ get_default_interface() {
     return 1
 }
 
+# Report the physical NIC link speed in Mbit/s (e.g. 1000), or nothing if it
+# cannot be determined (virtual device, no carrier, missing sysfs entry).
+get_nic_link_speed() {
+    local iface speed
+    iface=$(get_limit_interfaces 2>/dev/null | head -1)
+    [ -n "$iface" ] || iface=$(get_default_interface 2>/dev/null)
+    [ -n "$iface" ] || return 1
+    speed=$(cat "/sys/class/net/$iface/speed" 2>/dev/null | tr -d '\r')
+    [[ "$speed" =~ ^[0-9]+$ ]] && [ "$speed" -gt 0 ] || return 1
+    echo "$speed"
+}
+
 # Collect candidate interfaces for shaping (use default route interface only)
 get_limit_interfaces() {
     local iface
@@ -678,11 +768,31 @@ get_limit_interfaces() {
     }
 
     # 1) Prefer default route interface only when it's a safe physical NIC.
+    #    Note: `ip route get` can be hijacked by transparent proxies (e.g. a
+    #    tun device like "Meta"), so the result may be a virtual device.
     iface=$(get_default_interface)
     if is_safe_physical_iface "$iface"; then
         echo "$iface"
         return 0
     fi
+
+    # 2) Fall back to the kernel default route's device (real uplink), which
+    #    is not affected by per-destination proxy routing rules.
+    iface=$(ip route show default 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "dev") {print $(i+1); exit}}')
+    if is_safe_physical_iface "$iface"; then
+        echo "$iface"
+        return 0
+    fi
+
+    # 3) Last resort: first UP physical NIC that has a global IPv4 address.
+    while read -r ifn; do
+        [ -n "$ifn" ] || continue
+        is_safe_physical_iface "$ifn" || continue
+        if ip -o -4 addr show dev "$ifn" scope global 2>/dev/null | grep -q inet; then
+            echo "$ifn"
+            return 0
+        fi
+    done < <(ip -o link show up 2>/dev/null | awk -F': ' '{print $2}' | cut -d@ -f1)
 
     # No safe interface found -> do not apply shaping.
     return 1
@@ -874,17 +984,63 @@ remove_rate_limit() {
         if tc qdisc show dev "$interface" 2>/dev/null | grep -q " ingress "; then
             run_privileged tc qdisc del dev "$interface" ingress >/dev/null 2>&1
         fi
+        # Tear down the IFB device entirely so no inert shim device lingers.
         if ip link show dev "$SYSINFO_IFB_DEV" >/dev/null 2>&1; then
-            run_privileged tc qdisc del dev "$SYSINFO_IFB_DEV" root >/dev/null 2>&1
+            run_privileged tc qdisc del dev "$SYSINFO_IFB_DEV" root >/dev/null 2>&1 || true
+            run_privileged ip link set dev "$SYSINFO_IFB_DEV" down >/dev/null 2>&1 || true
+            run_privileged ip link del "$SYSINFO_IFB_DEV" >/dev/null 2>&1 || true
         fi
     fi
 
     return 0
 }
 
-# Check and apply traffic limit based on usage
-# CRITICAL: This function is called frequently (every 1s in watch mode)
-# We must avoid repeated tc operations that cause network instability
+# Fast running-task count from /proc/loadavg (avoids ps fork storm each refresh).
+count_running_tasks() {
+    local pair
+    pair=$(awk '{print $4}' /proc/loadavg 2>/dev/null)
+    pair=${pair#*/}
+    [[ "$pair" =~ ^[0-9]+$ ]] && echo "$pair" || echo "0"
+}
+
+# Throttle/tc checks are expensive; run at most every N seconds unless near threshold.
+maybe_check_and_apply_limit() {
+    local perc=$1
+    local interval="${SYSINFO_THROTTLE_CHECK_INTERVAL:-5}"
+    local stamp_file="/var/tmp/sysinfo_throttle_check_ts_${USER:-root}"
+    local cache_file="/var/tmp/sysinfo_throttle_cache_${USER:-root}"
+    local now last=0 threshold
+
+    now=$(date +%s)
+    [ -f "$stamp_file" ] && last=$(cat "$stamp_file" 2>/dev/null)
+    [[ "$last" =~ ^[0-9]+$ ]] || last=0
+
+    threshold=$(cfg_get_num "throttle_threshold"); threshold=${threshold:-95}
+
+    # Re-check immediately when usage is close to the configured threshold.
+    if [[ "$perc" =~ ^[0-9]+$ ]] && [ "$perc" -ge $((threshold - 2)) ]; then
+        check_and_apply_limit "$perc"
+        printf '%s\n%s\n' "$THROTTLE_RUNTIME_STATUS" "$THROTTLE_RUNTIME_DETAIL" > "$cache_file" 2>/dev/null
+        echo "$now" > "$stamp_file" 2>/dev/null
+        return 0
+    fi
+
+    if [ $((now - last)) -lt "$interval" ] && [ -f "$cache_file" ]; then
+        THROTTLE_RUNTIME_STATUS=$(sed -n '1p' "$cache_file" 2>/dev/null)
+        THROTTLE_RUNTIME_DETAIL=$(sed -n '2p' "$cache_file" 2>/dev/null)
+        THROTTLE_RUNTIME_STATUS=${THROTTLE_RUNTIME_STATUS:-ready}
+        THROTTLE_RUNTIME_DETAIL=${THROTTLE_RUNTIME_DETAIL:-below threshold}
+        return 0
+    fi
+
+    check_and_apply_limit "$perc"
+    printf '%s\n%s\n' "$THROTTLE_RUNTIME_STATUS" "$THROTTLE_RUNTIME_DETAIL" > "$cache_file" 2>/dev/null
+    echo "$now" > "$stamp_file" 2>/dev/null
+}
+
+# Check and apply traffic limit based on usage.
+# CRITICAL: prefer maybe_check_and_apply_limit() in the render loop; this
+# function may scan tc state and must not run every refresh tick.
 check_and_apply_limit() {
     local perc=$1
     local state_file="/var/tmp/sysinfo_throttle_state"
@@ -1010,6 +1166,124 @@ _tc_has_active_limit() {
     return 1
 }
 
+# Read throttle runtime state for display without applying tc changes.
+_probe_throttle_runtime_for_display() {
+    local cache_file="/var/tmp/sysinfo_throttle_cache_${USER:-root}"
+
+    if _tc_has_active_limit; then
+        THROTTLE_RUNTIME_STATUS="limited"
+        THROTTLE_RUNTIME_DETAIL=$(sed -n '2p' "$cache_file" 2>/dev/null)
+        THROTTLE_RUNTIME_DETAIL=${THROTTLE_RUNTIME_DETAIL:-active}
+        return 0
+    fi
+
+    if [ -f "$cache_file" ]; then
+        THROTTLE_RUNTIME_STATUS=$(sed -n '1p' "$cache_file" 2>/dev/null)
+        THROTTLE_RUNTIME_DETAIL=$(sed -n '2p' "$cache_file" 2>/dev/null)
+        THROTTLE_RUNTIME_STATUS=${THROTTLE_RUNTIME_STATUS:-ready}
+        THROTTLE_RUNTIME_DETAIL=${THROTTLE_RUNTIME_DETAIL:-below threshold}
+        return 0
+    fi
+
+    THROTTLE_RUNTIME_STATUS="ready"
+    THROTTLE_RUNTIME_DETAIL="below threshold"
+}
+
+# Print throttle config + runtime status in the network section.
+render_throttle_section() {
+    local traffic_perc_num="${1:-}"
+
+    [ "$(tolower "$SYSINFO_SHOW_THROTTLE")" = "true" ] || return 0
+
+    if [ ! -f "$SYSINFO_CFG_FILE" ]; then
+        if [ "$SYSINFO_LANG" = "zh" ]; then
+            dash_kv "$L_THROTTLE_ENABLE" "${YELLOW}未配置${NONE} (运行 sysinfo -c 应用配置)" "$LBL_W"
+        else
+            dash_kv "$L_THROTTLE_ENABLE" "${YELLOW}Not configured${NONE} (run sysinfo -c)" "$LBL_W"
+        fi
+        return 0
+    fi
+
+    local throttle_enabled throttle_threshold throttle_rate traffic_mode force_throttle
+    throttle_enabled=$(cfg_get_raw "throttle_enabled"); throttle_enabled=${throttle_enabled:-false}
+    throttle_threshold=$(cfg_get_num "throttle_threshold"); throttle_threshold=${throttle_threshold:-95}
+    throttle_rate=$(cfg_get "throttle_rate"); throttle_rate=${throttle_rate:-1mbps}
+    traffic_mode=$(cfg_get "traffic_mode"); traffic_mode=${traffic_mode:-both}
+    force_throttle=$(cfg_get_raw "force_throttle"); force_throttle=${force_throttle:-false}
+
+    case "$traffic_mode" in
+        upload|download|both) ;;
+        *) traffic_mode="both" ;;
+    esac
+
+    local mode_display rule_suffix=""
+    case "$traffic_mode" in
+        upload) mode_display="↑" ;;
+        download) mode_display="↓" ;;
+        *) mode_display="↕" ;;
+    esac
+    [ "$force_throttle" = "true" ] && rule_suffix=", force gateway"
+
+    if [ "$throttle_enabled" = "true" ]; then
+        if [ "$SYSINFO_LANG" = "zh" ]; then
+            dash_kv "$L_THROTTLE_ENABLE" "${GREEN}开启${NONE}" "$LBL_W"
+        else
+            dash_kv "$L_THROTTLE_ENABLE" "${GREEN}On${NONE}" "$LBL_W"
+        fi
+    else
+        if [ "$SYSINFO_LANG" = "zh" ]; then
+            dash_kv "$L_THROTTLE_ENABLE" "${YELLOW}关闭${NONE}" "$LBL_W"
+        else
+            dash_kv "$L_THROTTLE_ENABLE" "${YELLOW}Off${NONE}" "$LBL_W"
+        fi
+    fi
+
+    if [ "$SYSINFO_LANG" = "zh" ]; then
+        dash_kv "$L_THROTTLE_RULE" "≥${throttle_threshold}% → ${throttle_rate} (${mode_display}${rule_suffix})" "$LBL_W"
+    else
+        dash_kv "$L_THROTTLE_RULE" "≥${throttle_threshold}% → ${throttle_rate} (${mode_display}${rule_suffix})" "$LBL_W"
+    fi
+
+    if [ "$throttle_enabled" != "true" ]; then
+        if [ "$SYSINFO_LANG" = "zh" ]; then
+            dash_kv "$L_THROTTLE_STATUS" "${YELLOW}未启用${NONE}" "$LBL_W"
+        else
+            dash_kv "$L_THROTTLE_STATUS" "${YELLOW}Disabled${NONE}" "$LBL_W"
+        fi
+        return 0
+    fi
+
+    if [[ "$traffic_perc_num" =~ ^[0-9]+$ ]]; then
+        maybe_check_and_apply_limit "$traffic_perc_num"
+    else
+        _probe_throttle_runtime_for_display
+    fi
+
+    case "$THROTTLE_RUNTIME_STATUS" in
+        limited)
+            if [ "$SYSINFO_LANG" = "zh" ]; then
+                dash_kv "$L_THROTTLE_STATUS" "${RED}限速中${NONE} (${THROTTLE_RUNTIME_DETAIL})" "$LBL_W"
+            else
+                dash_kv "$L_THROTTLE_STATUS" "${RED}Active${NONE} (${THROTTLE_RUNTIME_DETAIL})" "$LBL_W"
+            fi
+            ;;
+        error)
+            if [ "$SYSINFO_LANG" = "zh" ]; then
+                dash_kv "$L_THROTTLE_STATUS" "${YELLOW}触发失败${NONE} (${THROTTLE_RUNTIME_DETAIL})" "$LBL_W"
+            else
+                dash_kv "$L_THROTTLE_STATUS" "${YELLOW}Failed${NONE} (${THROTTLE_RUNTIME_DETAIL})" "$LBL_W"
+            fi
+            ;;
+        *)
+            if [ "$SYSINFO_LANG" = "zh" ]; then
+                dash_kv "$L_THROTTLE_STATUS" "${GREEN}未限速${NONE} (${THROTTLE_RUNTIME_DETAIL})" "$LBL_W"
+            else
+                dash_kv "$L_THROTTLE_STATUS" "${GREEN}Idle${NONE} (${THROTTLE_RUNTIME_DETAIL})" "$LBL_W"
+            fi
+            ;;
+    esac
+}
+
 # --- Dashboard render ---
 # Collects system metrics and prints the dashboard. Wrapped in a function so
 # that sourcing this file only defines functions (no side effects); callers
@@ -1035,7 +1309,7 @@ else
     CPU_USAGE_NUM=$(awk "BEGIN {printf \"%.1f\", $LOAD_AVG * 100 / $CPU_CORES}" | tr -d '\r' || echo "0")
 fi
 CPU_USAGE=$(printf "%.1f%%" "$CPU_USAGE_NUM")
-PROCESSES=$(ps ax 2>/dev/null | wc -l | tr -d ' ' || echo "0")
+PROCESSES=$(count_running_tasks)
 USERS_LOGGED=$(who 2>/dev/null | wc -l || echo "0")
 MEM_TOTAL=$(free -h 2>/dev/null | awk 'NR==2{print $2}' || echo "N/A")
 MEM_USED=$(free -h 2>/dev/null | awk 'NR==2{print $3}' || echo "N/A")
@@ -1134,12 +1408,22 @@ TX_BYTES=${TX_BYTES:-0}
 [[ ! "$TX_BYTES" =~ ^[0-9]+$ ]] && TX_BYTES=0
 
 # Calculate speed if we have previous data (at least 1 second ago)
+# Per-direction throughput in Mbit/s (download=rx, upload=tx) plus the NIC link
+# speed; the notify module applies custom rates / direction mode / threshold.
+NIC_RX_MBPS=""
+NIC_TX_MBPS=""
+NIC_LINK_SPEED=""
 if [ "$PREV_TIME" -gt 0 ] && [ $((CURRENT_TIME - PREV_TIME)) -ge 1 ]; then
     TIME_DIFF=$((CURRENT_TIME - PREV_TIME))
     RX_DIFF=$((RX_BYTES - PREV_RX))
     TX_DIFF=$((TX_BYTES - PREV_TX))
+    [ "$RX_DIFF" -lt 0 ] && RX_DIFF=0
+    [ "$TX_DIFF" -lt 0 ] && TX_DIFF=0
     RX_SPEED_FMT=$(_fmt_speed "$RX_DIFF" "$TIME_DIFF")
     TX_SPEED_FMT=$(_fmt_speed "$TX_DIFF" "$TIME_DIFF")
+    NIC_RX_MBPS=$(awk -v b="$RX_DIFF" -v t="$TIME_DIFF" 'BEGIN{ if(t<=0)exit; printf "%d", b/t*8/1000000 }')
+    NIC_TX_MBPS=$(awk -v b="$TX_DIFF" -v t="$TIME_DIFF" 'BEGIN{ if(t<=0)exit; printf "%d", b/t*8/1000000 }')
+    NIC_LINK_SPEED=$(get_nic_link_speed)
 else
     # No previous data or not enough time passed
     RX_SPEED_FMT="0 KB/s"
@@ -1165,8 +1449,8 @@ fi
 NAT_RANGE=""
 if [ -f /etc/sysinfo-nat ]; then
     NAT_RANGE=$(cat /etc/sysinfo-nat 2>/dev/null | xargs || echo "")
-    # Convert 1-2 format to 1->2 for display
-    NAT_RANGE=$(echo "$NAT_RANGE" | sed 's/\([0-9]\)-\([0-9]\)/\1->\2/g')
+    # Normalize "public:private" or "public-private" to "public->private".
+    NAT_RANGE=$(echo "$NAT_RANGE" | sed -E 's/([0-9]+)[:-]([0-9]+)/\1->\2/g')
 fi
 
 # --- Print Dashboard ---
@@ -1174,100 +1458,92 @@ echo -e "${CYAN}================================================================
 echo -e "  ${BOLD}$L_TITLE${NONE} - $(date +'%Y-%m-%d %H:%M:%S')"
 echo -e "${CYAN}================================================================${NONE}"
 
-LBL_W_CORE=$(calc_label_width "$L_CPU" "$L_IPV4" "$L_IPV6" "$L_NAT" "$L_UPTIME")
-LBL_W_RES=$(calc_label_width "$L_LOAD" "$L_MEM" "$L_SWAP")
-LBL_W_RES_R=$(calc_label_width "$L_PROCS" "$L_USERS")
-LBL_W_NET=$(calc_label_width "$L_DOWNLOAD" "$L_TOTAL" "$L_TRAFFIC_MODE" "$L_TRAFFIC_PERC" "$L_THROTTLE")
-LBL_W_NET_R=$(calc_label_width "$L_UPLOAD" "$L_LIMIT")
+# One label width for the whole dashboard so every colon lines up vertically.
+LBL_W=$(calc_label_width \
+    "$L_CPU" "$L_IPV4" "$L_IPV6" "$L_NAT" "$L_UPTIME" \
+    "$L_LOAD" "$L_MEM" "$L_SWAP" "$L_PROCS" "$L_USERS" \
+    "$L_DOWNLOAD" "$L_UPLOAD" "$L_TOTAL" "$L_LIMIT" \
+    "$L_TRAFFIC_MODE" "$L_TRAFFIC_PERC" \
+    "$L_THROTTLE_ENABLE" "$L_THROTTLE_STATUS" "$L_THROTTLE_RULE")
 
 printf "${GREEN}%-s${NONE}\n" "$L_CORE"
-printf "  %s : %s (%s core(s))\n" "$(pad_label "$L_CPU" "$LBL_W_CORE")" "$CPU_MODEL" "$CPU_CORES"
-printf "  %s : %s\n" "$(pad_label "$L_IPV4" "$LBL_W_CORE")" "$IP_V4"
-printf "  %s : %s\n" "$(pad_label "$L_IPV6" "$LBL_W_CORE")" "$IP_V6"
-if [ "$(tolower "$SYSINFO_SHOW_NAT")" = "true" ] && [ -n "$NAT_RANGE" ]; then
-    printf "  %s : %s\n" "$(pad_label "$L_NAT" "$LBL_W_CORE")" "$NAT_RANGE"
+dash_kv "$L_CPU" "$CPU_MODEL ($CPU_CORES core(s))" "$LBL_W"
+dash_kv "$L_IPV4" "$IP_V4" "$LBL_W"
+dash_kv "$L_IPV6" "$IP_V6" "$LBL_W"
+if [ "$(tolower "$SYSINFO_SHOW_NAT")" = "true" ]; then
+    if [ -n "$NAT_RANGE" ]; then
+        dash_kv "$L_NAT" "$NAT_RANGE" "$LBL_W"
+    elif [ "$SYSINFO_LANG" = "zh" ]; then
+        dash_kv "$L_NAT" "${YELLOW}未启用${NONE}" "$LBL_W"
+    else
+        dash_kv "$L_NAT" "${YELLOW}Disabled${NONE}" "$LBL_W"
+    fi
 fi
-printf "  %s : %s\n" "$(pad_label "$L_UPTIME" "$LBL_W_CORE")" "$UPTIME"
+dash_kv "$L_UPTIME" "$UPTIME" "$LBL_W"
 
 printf "${GREEN}%-s${NONE}\n" "$L_RES"
-printf "  %s : %-26s %s : %s\n" "$(pad_label "$L_LOAD" "$LBL_W_RES")" "$CPU_USAGE" "$(pad_label "$L_PROCS" "$LBL_W_RES_R")" "$PROCESSES"
-printf "  %s : %-26s %s : %s\n" "$(pad_label "$L_MEM" "$LBL_W_RES")" "$MEM_INFO" "$(pad_label "$L_USERS" "$LBL_W_RES_R")" "$USERS_LOGGED"
-printf "  %s : %s\n" "$(pad_label "$L_SWAP" "$LBL_W_RES")" "$SWAP_USAGE"
+dash_kv2 "$L_LOAD" "$CPU_USAGE" "$L_PROCS" "$PROCESSES" "$LBL_W"
+dash_kv2 "$L_MEM" "$MEM_INFO" "$L_USERS" "$USERS_LOGGED" "$LBL_W"
+dash_kv "$L_SWAP" "$SWAP_USAGE" "$LBL_W"
 
 printf "${GREEN}%-s${NONE}\n" "$L_NET"
+TRAFFIC_PERC_NUM=""
 if [ "$(tolower "$SYSINFO_SHOW_TRAFFIC")" = "true" ] && [ "$TRAFFIC_AVAILABLE" -eq 0 ]; then
-    printf "  %s : %-26s %s : %s\n" "$(pad_label "$L_DOWNLOAD" "$LBL_W_NET")" "$RX_SPEED_FMT ($TRAFFIC_DOWN)" "$(pad_label "$L_UPLOAD" "$LBL_W_NET_R")" "$TX_SPEED_FMT ($TRAFFIC_UP)"
-    printf "  %s : %-26s %s : %s\n" "$(pad_label "$L_TOTAL" "$LBL_W_NET")" "$TRAFFIC_TOTAL" "$(pad_label "$L_LIMIT" "$LBL_W_NET_R")" "$TRAFFIC_LIMIT"
-        # Ensure TRAFFIC_MODE has a default value
-    TRAFFIC_MODE=${TRAFFIC_MODE:-Bi-directional}
-    printf "  %s : %s\n" "$(pad_label "$L_TRAFFIC_MODE" "$LBL_W_NET")" "$TRAFFIC_MODE"
+    dash_kv2 "$L_DOWNLOAD" "$RX_SPEED_FMT ($TRAFFIC_DOWN)" "$L_UPLOAD" "$TX_SPEED_FMT ($TRAFFIC_UP)" "$LBL_W"
+    dash_kv2 "$L_TOTAL" "$TRAFFIC_TOTAL" "$L_LIMIT" "$TRAFFIC_LIMIT" "$LBL_W"
+    if [ -z "$TRAFFIC_MODE" ]; then
+        [ "$SYSINFO_LANG" = "zh" ] && TRAFFIC_MODE="双向" || TRAFFIC_MODE="Bi-directional"
+    fi
+    dash_kv "$L_TRAFFIC_MODE" "$TRAFFIC_MODE" "$LBL_W"
     if [ -n "$TRAFFIC_PERC" ]; then
         TRAFFIC_PERC_NUM=$(echo "$TRAFFIC_PERC" | tr -d '%')
         TRAFFIC_PERC_NUM=${TRAFFIC_PERC_NUM:-0}
-        printf "  %s : [" "$(pad_label "$L_TRAFFIC_PERC" "$LBL_W_NET")"
+        printf "  %s : [" "$(pad_label "$L_TRAFFIC_PERC" "$LBL_W")"
         draw_bar $TRAFFIC_PERC_NUM 10
         printf "] %s\n" "$TRAFFIC_PERC"
     else
-        printf "  %s : %s\n" "$(pad_label "$L_TRAFFIC_PERC" "$LBL_W_NET")" "N/A (Unlimited)"
-    fi
-
-    # Check and apply throttling - show current status
-    throttle_enabled=$(cfg_get_raw "throttle_enabled")
-    throttle_threshold=$(cfg_get_num "throttle_threshold")
-    throttle_rate=$(cfg_get "throttle_rate")
-
-    if [ "$throttle_enabled" = "true" ] && [ "$(tolower "$SYSINFO_SHOW_THROTTLE")" = "true" ]; then
-        # Check and apply rate limiting
-        check_and_apply_limit "$TRAFFIC_PERC_NUM"
-
-        # Show current throttle status
-        # Translate mode for display
-        mode_display=""
-        case "$TRAFFIC_MODE" in
-            "Upload Only") mode_display="↑" ;;
-            "Download Only") mode_display="↓" ;;
-            "Bi-directional") mode_display="↕" ;;
-            *) mode_display="$TRAFFIC_MODE" ;;
-        esac
-
-        if [ "$THROTTLE_RUNTIME_STATUS" = "limited" ]; then
-            printf "  %s : ${RED}Limit${NONE} (${throttle_threshold}%% at ${throttle_rate} ${mode_display}, ${THROTTLE_RUNTIME_DETAIL})\n" "$(pad_label "$L_THROTTLE" "$LBL_W_NET")"
-        elif [ "$THROTTLE_RUNTIME_STATUS" = "ready" ]; then
-            printf "  %s : ${GREEN}Not Limit${NONE} (${throttle_threshold}%% at ${throttle_rate} ${mode_display}, iface ${THROTTLE_RUNTIME_DETAIL})\n" "$(pad_label "$L_THROTTLE" "$LBL_W_NET")"
-        elif [ "$THROTTLE_RUNTIME_STATUS" = "error" ]; then
-            printf "  %s : ${YELLOW}Trigger Failed${NONE} (${THROTTLE_RUNTIME_DETAIL})\n" "$(pad_label "$L_THROTTLE" "$LBL_W_NET")"
-        else
-            printf "  %s : ${GREEN}Disabled${NONE}\n" "$(pad_label "$L_THROTTLE" "$LBL_W_NET")"
-        fi
+        dash_kv "$L_TRAFFIC_PERC" "N/A (Unlimited)" "$LBL_W"
     fi
 else
     if [ "$(tolower "$SYSINFO_SHOW_TRAFFIC")" = "true" ]; then
-        printf "  %s : %-26s %s : %s\n" "$(pad_label "$L_DOWNLOAD" "$LBL_W_NET")" "$RX_SPEED_FMT" "$(pad_label "$L_UPLOAD" "$LBL_W_NET_R")" "$TX_SPEED_FMT"
+        dash_kv2 "$L_DOWNLOAD" "$RX_SPEED_FMT" "$L_UPLOAD" "$TX_SPEED_FMT" "$LBL_W"
     fi
 fi
+render_throttle_section "$TRAFFIC_PERC_NUM"
 
+DISK_MNT_W=18
+DISK_NUM_W=8
 printf "${GREEN}%-s${NONE}\n" "$L_DISK"
-printf "  %-18s %-8s %-8s %-8s %-15s\n" "$L_MNT" "$L_SIZE" "$L_USED" "$L_PERC" "$L_PROG"
+printf "  %s %s %s %s  %s\n" \
+    "$(pad_label "$L_MNT" "$DISK_MNT_W")" \
+    "$(pad_label_right "$L_SIZE" "$DISK_NUM_W")" \
+    "$(pad_label_right "$L_USED" "$DISK_NUM_W")" \
+    "$(pad_label_right "$L_PERC" "$DISK_NUM_W")" \
+    "$L_PROG"
 echo -e "  -------------------------------------------------------------"
 df -h -x tmpfs -x devtmpfs -x squashfs -x debugfs -x overlay -x efivarfs 2>/dev/null | tail -n +2 | while IFS=' ' read -r filesystem size used avail perc mnt rest; do
-    # Only show if mount point starts with / and is valid
-    # Skip efi partition and other system partitions
     if [ -n "$mnt" ] && [[ "$mnt" == /* ]]; then
-        # Skip /boot/efi and similar system partitions
         if [[ "$mnt" == /boot/efi ]] || [[ "$mnt" == /boot ]]; then
             continue
         fi
-        # Truncate long mount paths to 18 characters
-        if [ ${#mnt} -gt 18 ]; then
-            mnt="${mnt:0:15}..."
+        if [ ${#mnt} -gt "$DISK_MNT_W" ]; then
+            mnt="${mnt:0:$((DISK_MNT_W - 3))}..."
         fi
         PERC_NUM=$(echo "$perc" | tr -d '%')
-        printf "  %-18s %-8s %-8s %-8s [" "$mnt" "$size" "$used" "$perc"
+        printf "  %-${DISK_MNT_W}s %${DISK_NUM_W}s %${DISK_NUM_W}s %${DISK_NUM_W}s [" \
+            "$mnt" "$size" "$used" "$perc"
         draw_bar $PERC_NUM 10
         printf "]\n"
     fi
 done
 echo -e "${CYAN}================================================================${NONE}"
+
+# --- Push notifications (no-op unless the notify module is loaded & enabled) ---
+# Disk usage is evaluated inside the module (it supports per-path rules).
+if declare -f notify_check >/dev/null 2>&1; then
+    notify_check "$CPU_USAGE_NUM" "$TRAFFIC_PERC_NUM" "$THROTTLE_RUNTIME_STATUS" \
+        "$NIC_RX_MBPS" "$NIC_TX_MBPS" "$NIC_LINK_SPEED"
+fi
 
 }
 

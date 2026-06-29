@@ -2,6 +2,14 @@
 
 本文档记录 `sysinfo-cli` 的重要更新。
 
+## [Unreleased] - 2026-06-26
+
+### 变更
+- 移除根目录兼容 wrapper（`sysinfo.sh`、`sysinfo_core.sh` 等），统一使用 `src/` 和 `scripts/` 目录。
+- 更新 README / CODEBUDDY 文档，补充完整目录结构说明。
+- 实时监控改为单 shell 刷新循环，降低 CPU 占用。
+- `install.sh` 同时将 `sysinfo_core.sh` 安装到 `/usr/local/bin/` 与 `/etc/profile.d/`。
+
 ## [Unreleased] - 2026-03-02
 
 ### 新增

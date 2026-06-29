@@ -3,7 +3,7 @@
 # Throttle Testing Script
 # This script helps diagnose throttle/limit issues
 
-echo "=== SysInfo Throttle Diagnostic Tool ==="
+echo "=== sysinfo-cli Throttle Diagnostic Tool ==="
 echo ""
 
 # 1. Check if tc is available

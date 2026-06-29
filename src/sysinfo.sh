@@ -1,12 +1,18 @@
 #!/bin/bash
 
 # ============================================
-# SysInfo-Cli - System Real-time Monitor
+# sysinfo-cli - System Real-time Monitor
 # Command Line Tool (CLI) - YAML Configuration
 # ============================================
 
-# Default paths
-DEFAULT_CONFIG_FILE="/etc/sysinfo/config.yaml"
+# Default paths (user config → system config; override with SYSINFO_CONFIG)
+if [ -n "${SYSINFO_CONFIG:-}" ]; then
+    DEFAULT_CONFIG_FILE="$SYSINFO_CONFIG"
+elif [ -f "${HOME:-/nonexistent}/.config/sysinfo/config.yaml" ]; then
+    DEFAULT_CONFIG_FILE="${HOME}/.config/sysinfo/config.yaml"
+else
+    DEFAULT_CONFIG_FILE="/etc/sysinfo/config.yaml"
+fi
 CONFIG_FILE=""
 APPLY_CONFIG="false"
 ACTION=""   # post-parse action: "" | "reset-traffic"
@@ -68,6 +74,31 @@ _get_config_from_file() {
     yq eval ".$key" "$file" 2>/dev/null
 }
 
+# Get a YAML sequence as newline-separated items (empty if absent/empty list).
+# Tries the explicit config file first, then the default path.
+get_config_list() {
+    local key="$1" value
+    for _cfg in "$CONFIG_FILE" "$DEFAULT_CONFIG_FILE"; do
+        [ -n "$_cfg" ] && [ -f "$_cfg" ] || continue
+        check_yq 2>/dev/null || return 0
+        value=$(yq eval ".${key}[]" "$_cfg" 2>/dev/null)
+        if [ -n "$value" ] && [ "$value" != "null" ]; then
+            printf '%s\n' "$value"
+            return 0
+        fi
+    done
+    return 0
+}
+
+# Normalize a language value to "zh", "en", or "" (auto/unknown).
+normalize_lang() {
+    case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | tr -d ' \t\r\n')" in
+        zh|zh-cn|cn|chinese) echo "zh" ;;
+        en|en-us|english) echo "en" ;;
+        *) echo "" ;;
+    esac
+}
+
 # Check if config boolean is true
 is_config_true() {
     local key="$1"
@@ -101,17 +132,36 @@ apply_config() {
 
     check_yq || return 1
 
+    # Persist display language so dashboard/banner honor it across sessions.
+    # "auto" (or unknown) removes the override and falls back to system locale.
+    local cfg_lang norm_lang
+    cfg_lang=$(get_config "display.language" "auto")
+    norm_lang=$(normalize_lang "$cfg_lang")
+    if [ -n "$norm_lang" ]; then
+        echo "$norm_lang" | run_privileged tee /etc/sysinfo-lang >/dev/null 2>&1
+        echo "✓ Language set: $norm_lang"
+    else
+        run_privileged rm -f /etc/sysinfo-lang
+        echo "✓ Language: auto (system locale)"
+    fi
+
     local nat_enabled
     nat_enabled=$(is_config_true "nat.enabled" && echo "true" || echo "false")
 
-    # Apply NAT mappings
+    # Apply NAT mappings (record for display). Clear stale file when disabled
+    # or empty so the dashboard never shows outdated mappings.
     if $nat_enabled; then
         local mappings
         mappings=$(yq eval '.nat.mappings[]' "$CONFIG_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/ *$//')
         if [ -n "$mappings" ]; then
             echo "$mappings" | run_privileged tee /etc/sysinfo-nat >/dev/null 2>&1
             echo "✓ NAT configured: $mappings"
+        else
+            run_privileged rm -f /etc/sysinfo-nat
+            echo "✓ NAT enabled (no mappings configured)"
         fi
+    else
+        run_privileged rm -f /etc/sysinfo-nat
     fi
 
     # Apply traffic configuration
@@ -130,17 +180,13 @@ apply_config() {
         local throttle_enabled
         throttle_enabled=$(is_config_true "throttle.enabled" && echo "true" || echo "false")
 
-        if $throttle_enabled; then
-            local throttle_threshold
-            local throttle_rate
-            local throttle_force
-            throttle_threshold=$(get_config "throttle.threshold" "95")
-            throttle_rate=$(get_config "throttle.rate" "10mbps")
-            throttle_force=$(is_config_true "network.force_gateway_throttle" && echo "true" || echo "false")
-            traffic_json+=",\"throttle_enabled\":true,\"throttle_threshold\":$throttle_threshold,\"throttle_rate\":\"$throttle_rate\",\"force_throttle\":$throttle_force"
-        else
-            traffic_json+=",\"throttle_enabled\":false,\"force_throttle\":false"
-        fi
+        # Always persist threshold/rate/force so the dashboard shows the real
+        # configured rule even when throttling is currently disabled.
+        local throttle_threshold throttle_rate throttle_force
+        throttle_threshold=$(get_config "throttle.threshold" "95")
+        throttle_rate=$(get_config "throttle.rate" "10mbps")
+        throttle_force=$(is_config_true "network.force_gateway_throttle" && echo "true" || echo "false")
+        traffic_json+=",\"throttle_enabled\":$throttle_enabled,\"throttle_threshold\":$throttle_threshold,\"throttle_rate\":\"$throttle_rate\",\"force_throttle\":$throttle_force"
 
         traffic_json+="}"
 
@@ -154,16 +200,57 @@ apply_config() {
     return 0
 }
 
-# Resolve the core script path: prefer the sibling src/ copy, fall back to the
-# installed /etc/profile.d copy. Returns 0 and sets CORE_SCRIPT, or returns 1.
+# Resolve the core script path. Search common install layouts:
+#   1) sibling of this CLI script (src/ or ~/.local/bin/)
+#   2) /usr/local/bin/sysinfo_core.sh (system CLI co-install)
+#   3) /etc/profile.d/sysinfo_core.sh (profile.d / legacy install)
+#   4) ~/.local/bin/sysinfo_core.sh (user install)
+# Override with SYSINFO_CORE if set.
 locate_core_script() {
-    local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    CORE_SCRIPT="$script_dir/sysinfo_core.sh"
-    if [ ! -f "$CORE_SCRIPT" ] && [ -f "/etc/profile.d/sysinfo_core.sh" ]; then
-        CORE_SCRIPT="/etc/profile.d/sysinfo_core.sh"
+    local script_dir candidate
+    if [ -n "${SYSINFO_CORE:-}" ] && [ -f "$SYSINFO_CORE" ]; then
+        CORE_SCRIPT="$SYSINFO_CORE"
+        return 0
     fi
-    [ -f "$CORE_SCRIPT" ]
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    for candidate in \
+        "$script_dir/sysinfo_core.sh" \
+        "/usr/local/bin/sysinfo_core.sh" \
+        "/etc/profile.d/sysinfo_core.sh" \
+        "${HOME:-}/.local/bin/sysinfo_core.sh"; do
+        if [ -n "$candidate" ] && [ -f "$candidate" ]; then
+            CORE_SCRIPT="$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Source the optional push-notification module (best-effort). Mirrors the core
+# search layout. Missing module is non-fatal — notifications simply stay off.
+NOTIFY_SCRIPT=""
+load_notify_module() {
+    local script_dir candidate
+    [ -n "$NOTIFY_SCRIPT" ] && return 0
+    if [ -n "${SYSINFO_NOTIFY:-}" ] && [ -f "$SYSINFO_NOTIFY" ]; then
+        NOTIFY_SCRIPT="$SYSINFO_NOTIFY"
+    else
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        for candidate in \
+            "$script_dir/sysinfo_notify.sh" \
+            "/usr/local/bin/sysinfo_notify.sh" \
+            "/etc/profile.d/sysinfo_notify.sh" \
+            "${HOME:-}/.local/bin/sysinfo_notify.sh"; do
+            if [ -n "$candidate" ] && [ -f "$candidate" ]; then
+                NOTIFY_SCRIPT="$candidate"
+                break
+            fi
+        done
+    fi
+    [ -n "$NOTIFY_SCRIPT" ] || return 1
+    # shellcheck disable=SC1090
+    source "$NOTIFY_SCRIPT"
+    return 0
 }
 
 # ============================================
@@ -172,7 +259,7 @@ locate_core_script() {
 
 show_help() {
     cat << 'EOF'
-SysInfo-Cli - System Real-time Monitor (Simplified YAML Configuration)
+sysinfo-cli - System Real-time Monitor (Simplified YAML Configuration)
 
 Usage:
   sysinfo                          - Display system info with default config
@@ -218,10 +305,24 @@ Configuration File Format (YAML):
     rate: "10mbps"           # Rate limit
 
   display:
+    language: "auto"          # auto | zh | en
     refresh_interval: 1       # Seconds (1-60)
     show_traffic: true
     show_nat: true
     show_throttle: true
+
+  notify:                     # Push alerts (modular, Bark). Disabled by default.
+    enabled: false
+    bark:
+      url: "https://api.day.app"
+      key: ""
+    cooldown: 1800            # Min seconds between repeated alerts per rule
+    rules:
+      cpu:      { enabled: false, threshold: 90 }
+      net:      { enabled: false, threshold: 90 }   # monthly traffic quota %
+      nic:      { enabled: false, threshold: 80, mode: both, upload_rate: 0, download_rate: 0 }
+      throttle: { enabled: false }
+      disk:     { enabled: false, threshold: 90, paths: [] }  # [] = all mounts
 
 Commands:
   -c <file>     Apply configuration from YAML file
@@ -231,6 +332,10 @@ Commands:
 Maintenance Commands:
   --reset-traffic   Reset monthly traffic statistics
   --clear-nat       Clear NAT port mappings
+
+Notification Commands:
+  --notify-test     Send a test push to verify Bark configuration
+  --notify-check    Evaluate alert rules against current metrics (use in cron)
 
 Examples:
   # Display system info (default config)
@@ -248,7 +353,13 @@ Examples:
   # Reset traffic statistics
   sysinfo --reset-traffic
 
-For more information, visit: https://github.com/jokerknight/sysinfo-cli
+  # Test push notification
+  sysinfo --notify-test
+
+  # Evaluate alert rules every 5 minutes via cron
+  #   */5 * * * * /usr/local/bin/sysinfo --notify-check
+
+For more information, visit: https://github.com/baixiaoshengofficial/sysinfo-cli
 EOF
 }
 
@@ -264,6 +375,11 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         -c)
+            if [ -z "${2:-}" ] || [[ "$2" == -* ]]; then
+                echo "Error: -c requires a config file path"
+                echo "Usage: sysinfo -c /path/to/config.yaml"
+                exit 1
+            fi
             CONFIG_FILE="$2"
             APPLY_CONFIG="true"
             shift 2
@@ -285,6 +401,16 @@ while [[ $# -gt 0 ]]; do
         --reset-traffic)
             # Defer to the post-parse block so core location/sourcing is unified.
             ACTION="reset-traffic"
+            shift
+            ;;
+        --notify-check)
+            # Evaluate notification rules against current metrics (for cron).
+            ACTION="notify-check"
+            shift
+            ;;
+        --notify-test)
+            # Send a test push to verify provider configuration.
+            ACTION="notify-test"
             shift
             ;;
         --clear-nat)
@@ -312,8 +438,25 @@ if [ -z "$CONFIG_FILE" ] && [ -f "$DEFAULT_CONFIG_FILE" ]; then
     CONFIG_FILE="$DEFAULT_CONFIG_FILE"
 fi
 
+# Send a test push (no core engine required).
+if [ "$ACTION" = "notify-test" ]; then
+    if ! load_notify_module; then
+        echo "Error: notification module (sysinfo_notify.sh) not found"
+        exit 1
+    fi
+    notify_test
+    exit $?
+fi
+
 # Apply config only when explicitly requested with -c.
-if [ "$APPLY_CONFIG" = "true" ] && [ -n "$CONFIG_FILE" ] && [ -f "$CONFIG_FILE" ]; then
+if [ "$APPLY_CONFIG" = "true" ]; then
+    if [ -z "$CONFIG_FILE" ]; then
+        CONFIG_FILE="$DEFAULT_CONFIG_FILE"
+    fi
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo "Error: Configuration file not found: $CONFIG_FILE"
+        exit 1
+    fi
     echo "Applying configuration from: $CONFIG_FILE"
     if load_config "$CONFIG_FILE"; then
         apply_config
@@ -326,6 +469,14 @@ fi
 # Locate the core engine (shared by reset-traffic and the dashboard render).
 if ! locate_core_script; then
     echo "Error: sysinfo_core.sh not found"
+    echo ""
+    echo "Searched:"
+    echo "  - Next to this script"
+    echo "  - /usr/local/bin/sysinfo_core.sh"
+    echo "  - /etc/profile.d/sysinfo_core.sh"
+    echo "  - \$HOME/.local/bin/sysinfo_core.sh"
+    echo ""
+    echo "Fix:  sudo ./install.sh"
     exit 1
 fi
 
@@ -336,8 +487,8 @@ if [ "$ACTION" = "reset-traffic" ]; then
     exit 0
 fi
 
-# Display system info. In an interactive terminal, use watch for live monitoring;
-# in non-interactive/test contexts, render once to avoid hanging.
+# Display system info. In an interactive terminal, refresh in a single shell
+# (source core once) to avoid watch respawning bash + re-sourcing every tick.
 INTERVAL=${INTERVAL:-$(get_config "display.refresh_interval" "1")}
 if ! [[ "$INTERVAL" =~ ^[0-9]+$ ]] || [ "$INTERVAL" -lt 1 ] || [ "$INTERVAL" -gt 60 ]; then
     INTERVAL=1
@@ -348,9 +499,49 @@ SYSINFO_SHOW_NAT=$(get_config "display.show_nat" "true")
 SYSINFO_SHOW_THROTTLE=$(get_config "display.show_throttle" "true")
 export SYSINFO_SHOW_TRAFFIC SYSINFO_SHOW_NAT SYSINFO_SHOW_THROTTLE
 
-if [ -t 1 ] && command -v watch >/dev/null 2>&1; then
-    watch -c -n "$INTERVAL" -t bash -c "echo ''; source '$CORE_SCRIPT' 2>/dev/null && sysinfo_render" 2>/dev/null
+# Honor display.language from the active config immediately (no -r needed).
+# Empty/auto leaves SYSINFO_LANG unset so core falls back to /etc/sysinfo-lang
+# or the system locale.
+_cfg_lang=$(normalize_lang "$(get_config "display.language" "auto")")
+if [ -n "$_cfg_lang" ]; then
+    export SYSINFO_LANG="$_cfg_lang"
+fi
+
+source "$CORE_SCRIPT"
+
+# Load the push-notification module so sysinfo_render can evaluate alert rules.
+load_notify_module 2>/dev/null || true
+
+# Headless rule evaluation (cron entrypoint): compute metrics via a silent
+# render — notify_check runs inside it — then exit without drawing the dashboard.
+# The NIC throughput rule needs two samples ~1s apart, so prime first (with
+# notifications suppressed), then evaluate on the second render.
+if [ "$ACTION" = "notify-check" ]; then
+    SYSINFO_NOTIFY_SKIP=1 sysinfo_render >/dev/null 2>&1
+    sleep 1
+    sysinfo_render >/dev/null 2>&1
+    exit 0
+fi
+
+# In-place live refresh: alternate screen + overwrite lines (no full clear flash).
+sysinfo_live_loop() {
+    local interval=$1
+    trap 'printf "\033[?25h\033[?1049l\033[0m"; exit 0' INT TERM
+    # Alternate buffer keeps scrollback clean; hide cursor while refreshing.
+    printf '\033[?1049h\033[?25l'
+    while true; do
+        printf '\033[H'
+        while IFS= read -r line || [ -n "$line" ]; do
+            printf '%s\033[K\n' "$line"
+        done < <(sysinfo_render)
+        # Erase leftover lines when the layout shrinks (e.g. fewer disk rows).
+        printf '\033[J'
+        sleep "$interval"
+    done
+}
+
+if [ -t 1 ]; then
+    sysinfo_live_loop "$INTERVAL"
 else
-    source "$CORE_SCRIPT"
     sysinfo_render
 fi
