@@ -88,6 +88,39 @@ check_china() {
     fi
 }
 
+# Map uname -m to mikefarah/yq release asset suffix.
+detect_yq_asset() {
+    case "$(uname -m 2>/dev/null)" in
+        x86_64|amd64)   echo "yq_linux_amd64" ;;
+        aarch64|arm64)  echo "yq_linux_arm64" ;;
+        armv7l|armv6l|armhf|arm) echo "yq_linux_arm" ;;
+        i686|i386)      echo "yq_linux_386" ;;
+        *)
+            echo "unsupported"
+            return 1
+            ;;
+    esac
+}
+
+# Install mikefarah yq for the current CPU architecture.
+install_yq_binary() {
+    local asset url
+    asset=$(detect_yq_asset) || {
+        echo "Error: unsupported CPU architecture for yq: $(uname -m)"
+        return 1
+    }
+    url="https://github.com/mikefarah/yq/releases/latest/download/${asset}"
+    msg install_yq
+    echo "  → ${asset}"
+    sudo rm -f /usr/local/bin/yq
+    sudo wget -q "$url" -O /usr/local/bin/yq
+    sudo chmod +x /usr/local/bin/yq
+    if ! /usr/local/bin/yq --version 2>/dev/null | grep -qi mikefarah; then
+        echo "Error: yq install failed (wrong binary or network issue)"
+        return 1
+    fi
+}
+
 # Check and install dependencies
 check_and_install_deps() {
     local missing_deps=()
@@ -97,8 +130,8 @@ check_and_install_deps() {
         missing_deps+=("iproute2")
     fi
 
-    # Check for yq (mikefarah/yq at /usr/local/bin — apt's python-yq is incompatible).
-    if ! { [ -x /usr/local/bin/yq ] && /usr/local/bin/yq --version 2>/dev/null | grep -qi mikefarah; }; then
+    # yq must be mikefarah build AND runnable on this CPU (not wrong-arch amd64 on ARM).
+    if ! /usr/local/bin/yq --version 2>/dev/null | grep -qi mikefarah; then
         missing_deps+=("yq")
     fi
 
@@ -120,10 +153,7 @@ check_and_install_deps() {
 
         # Install mikefarah yq to /usr/local/bin (overrides incompatible apt python-yq).
         if [[ " ${missing_deps[*]} " =~ "yq" ]]; then
-            msg install_yq
-            local yq_url="https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64"
-            sudo wget -q "$yq_url" -O /usr/local/bin/yq
-            sudo chmod +x /usr/local/bin/yq
+            install_yq_binary || exit 1
         fi
 
         msg deps_installed
