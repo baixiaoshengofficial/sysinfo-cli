@@ -97,8 +97,8 @@ check_and_install_deps() {
         missing_deps+=("iproute2")
     fi
 
-    # Check for yq (YAML parser)
-    if ! command -v yq >/dev/null 2>&1; then
+    # Check for yq (mikefarah/yq at /usr/local/bin — apt's python-yq is incompatible).
+    if ! { [ -x /usr/local/bin/yq ] && /usr/local/bin/yq --version 2>/dev/null | grep -qi mikefarah; }; then
         missing_deps+=("yq")
     fi
 
@@ -118,7 +118,7 @@ check_and_install_deps() {
             sudo apt-get install -y iproute2 >/dev/null 2>&1
         fi
 
-        # Install yq
+        # Install mikefarah yq to /usr/local/bin (overrides incompatible apt python-yq).
         if [[ " ${missing_deps[*]} " =~ "yq" ]]; then
             msg install_yq
             local yq_url="https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64"

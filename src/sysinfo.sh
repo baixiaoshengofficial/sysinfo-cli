@@ -66,15 +66,33 @@ get_config() {
     echo "$default"
 }
 
-# Read one YAML key from a specific file (helper for get_config).
+# Resolve yq binary (prefer mikefarah build shipped by install.sh).
+_yq_bin() {
+    if [ -x /usr/local/bin/yq ]; then
+        echo /usr/local/bin/yq
+    elif command -v yq >/dev/null 2>&1; then
+        command -v yq
+    else
+        return 1
+    fi
+}
+
+# Read one YAML key from a file. Tries mikefarah v4/v3 and python-yq syntaxes.
 _get_config_from_file() {
     local key="$1"
     local file="$2"
-    local value=""
-    check_yq 2>/dev/null || return 0
-    value=$(yq eval ".$key" "$file" 2>/dev/null)
+    local yq value=""
+    yq=$(_yq_bin) || return 0
+
+    value=$("$yq" eval ".$key" "$file" 2>/dev/null)
     if [ -z "$value" ] || [ "$value" = "null" ]; then
-        value=$(yq ".$key" "$file" 2>/dev/null)
+        value=$("$yq" ".$key" "$file" 2>/dev/null)
+    fi
+    if [ -z "$value" ] || [ "$value" = "null" ]; then
+        value=$("$yq" r "$file" "$key" 2>/dev/null)
+    fi
+    if [ -z "$value" ] || [ "$value" = "null" ]; then
+        value=$("$yq" -r ".$key" "$file" 2>/dev/null)
     fi
     [ "$value" = "null" ] && value=""
     printf '%s' "$value"
@@ -172,6 +190,11 @@ apply_config() {
     else
         run_privileged rm -f /etc/sysinfo-lang
         echo "✓ Language: auto (from $CONFIG_FILE, follows system locale)"
+        # Hint when the file clearly says zh/en but yq failed to parse it.
+        if grep -qE '^[[:space:]]*language:[[:space:]]*"?zh' "$CONFIG_FILE" 2>/dev/null; then
+            echo "  ⚠ File contains language: zh but yq read failed — check: yq --version; which yq"
+            echo "    Expected mikefarah yq at /usr/local/bin/yq (re-run install.sh)"
+        fi
     fi
 
     local nat_enabled
