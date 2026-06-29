@@ -70,8 +70,33 @@ get_config() {
 _get_config_from_file() {
     local key="$1"
     local file="$2"
+    local value=""
     check_yq 2>/dev/null || return 0
-    yq eval ".$key" "$file" 2>/dev/null
+    value=$(yq eval ".$key" "$file" 2>/dev/null)
+    if [ -z "$value" ] || [ "$value" = "null" ]; then
+        value=$(yq ".$key" "$file" 2>/dev/null)
+    fi
+    [ "$value" = "null" ] && value=""
+    printf '%s' "$value"
+}
+
+# Read a key only from the file being applied (-c / -r), never fall back to another path.
+get_applied_config() {
+    local key="$1"
+    local default="${2:-}"
+    local value
+    value=$(_get_config_from_file "$key" "$CONFIG_FILE")
+    if [ -n "$value" ] && [ "$value" != "null" ]; then
+        echo "$value"
+    else
+        echo "$default"
+    fi
+}
+
+is_applied_config_true() {
+    local key="$1" value
+    value=$(get_applied_config "$key" "false")
+    [ "$value" = "true" ] || [ "$value" = "yes" ] || [ "$value" = "1" ]
 }
 
 # Get a YAML sequence as newline-separated items (empty if absent/empty list).
@@ -92,9 +117,13 @@ get_config_list() {
 
 # Normalize a language value to "zh", "en", or "" (auto/unknown).
 normalize_lang() {
-    case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | tr -d ' \t\r\n')" in
+    local raw="${1:-}"
+    raw="${raw#\"}"; raw="${raw%\"}"
+    raw="${raw#\'}"; raw="${raw%\'}"
+    case "$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]' | tr -d ' \t\r\n')" in
         zh|zh-cn|cn|chinese) echo "zh" ;;
         en|en-us|english) echo "en" ;;
+        auto|"") echo "" ;;
         *) echo "" ;;
     esac
 }
@@ -135,18 +164,18 @@ apply_config() {
     # Persist display language so dashboard/banner honor it across sessions.
     # "auto" (or unknown) removes the override and falls back to system locale.
     local cfg_lang norm_lang
-    cfg_lang=$(get_config "display.language" "auto")
+    cfg_lang=$(get_applied_config "display.language" "auto")
     norm_lang=$(normalize_lang "$cfg_lang")
     if [ -n "$norm_lang" ]; then
         echo "$norm_lang" | run_privileged tee /etc/sysinfo-lang >/dev/null 2>&1
-        echo "✓ Language set: $norm_lang"
+        echo "✓ Language set: $norm_lang (from $CONFIG_FILE)"
     else
         run_privileged rm -f /etc/sysinfo-lang
-        echo "✓ Language: auto (system locale)"
+        echo "✓ Language: auto (from $CONFIG_FILE, follows system locale)"
     fi
 
     local nat_enabled
-    nat_enabled=$(is_config_true "nat.enabled" && echo "true" || echo "false")
+    nat_enabled=$(is_applied_config_true "nat.enabled" && echo "true" || echo "false")
 
     # Apply NAT mappings (record for display). Clear stale file when disabled
     # or empty so the dashboard never shows outdated mappings.
@@ -170,22 +199,22 @@ apply_config() {
     local traffic_day
     local traffic_mode
 
-    traffic_enabled=$(is_config_true "traffic.enabled" && echo "true" || echo "false")
-    traffic_limit=$(get_config "traffic.limit" "1T")
-    traffic_day=$(get_config "traffic.reset_day" "1")
-    traffic_mode=$(get_config "traffic.mode" "both")
+    traffic_enabled=$(is_applied_config_true "traffic.enabled" && echo "true" || echo "false")
+    traffic_limit=$(get_applied_config "traffic.limit" "1T")
+    traffic_day=$(get_applied_config "traffic.reset_day" "1")
+    traffic_mode=$(get_applied_config "traffic.mode" "both")
 
     if $traffic_enabled; then
         local traffic_json="{\"limit\":\"$traffic_limit\",\"reset_day\":$traffic_day,\"traffic_mode\":\"$traffic_mode\""
         local throttle_enabled
-        throttle_enabled=$(is_config_true "throttle.enabled" && echo "true" || echo "false")
+        throttle_enabled=$(is_applied_config_true "throttle.enabled" && echo "true" || echo "false")
 
         # Always persist threshold/rate/force so the dashboard shows the real
         # configured rule even when throttling is currently disabled.
         local throttle_threshold throttle_rate throttle_force
-        throttle_threshold=$(get_config "throttle.threshold" "95")
-        throttle_rate=$(get_config "throttle.rate" "10mbps")
-        throttle_force=$(is_config_true "network.force_gateway_throttle" && echo "true" || echo "false")
+        throttle_threshold=$(get_applied_config "throttle.threshold" "95")
+        throttle_rate=$(get_applied_config "throttle.rate" "10mbps")
+        throttle_force=$(is_applied_config_true "network.force_gateway_throttle" && echo "true" || echo "false")
         traffic_json+=",\"throttle_enabled\":$throttle_enabled,\"throttle_threshold\":$throttle_threshold,\"throttle_rate\":\"$throttle_rate\",\"force_throttle\":$throttle_force"
 
         traffic_json+="}"
@@ -385,8 +414,12 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -r)
-            # Reload configuration from default path
-            if [ -z "$CONFIG_FILE" ]; then
+            # -r always reloads the system config when present (not ~/.config shadow copy).
+            if [ -n "${SYSINFO_CONFIG:-}" ] && [ -f "$SYSINFO_CONFIG" ]; then
+                CONFIG_FILE="$SYSINFO_CONFIG"
+            elif [ -f /etc/sysinfo/config.yaml ]; then
+                CONFIG_FILE="/etc/sysinfo/config.yaml"
+            elif [ -z "$CONFIG_FILE" ]; then
                 CONFIG_FILE="$DEFAULT_CONFIG_FILE"
             fi
             echo "Reloading configuration from: $CONFIG_FILE"
