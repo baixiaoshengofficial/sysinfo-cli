@@ -60,7 +60,8 @@ See also [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md).
 | Notify test / cron check | `sysinfo --notify-test` / `sysinfo --notify-check` |
 | Docs preview | `make docs-serve` (port `8099`, auto-frees if busy) |
 | Docker test image | `make docker-test` |
-| **Multi-distro install smoke test** | `make docker-test-distros` (Docker; auto-fallback `pkexec docker` / `sudo docker`) |
+| **Multi-distro install smoke test** | `make docker-test-distros` (uses `scripts/docker-cmd.sh`; `.docker-sudo` or `docker` group) |
+| **Build per-distro install images** | `make docker-build-distros` (`docker/Dockerfile.install-test`, 8 distros incl. OpenWrt) |
 
 ---
 
@@ -78,7 +79,7 @@ See also [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md).
 ## Install script notes
 
 - **`require_linux()`** — rejects macOS.
-- **`detect_pkg_manager()`** + **`pkg_install()`** — iproute2 / iproute, curl/wget.
+- **`detect_pkg_manager()`** + **`pkg_install()`** — iproute2 / iproute / ip-full+tc-full (opkg), curl/wget.
 - **`detect_yq_asset()`** + **`install_yq_binary()`** — yq per `uname -m`.
 - **`download_file()`** — curl or wget for scripts and yq.
 - Remote install: `curl …/install.sh | bash` (no full git checkout).

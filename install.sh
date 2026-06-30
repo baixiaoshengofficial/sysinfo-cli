@@ -110,7 +110,7 @@ require_linux() {
     fi
 }
 
-# apt | dnf | yum | zypper | apk | pacman | emerge | unknown
+# apt | dnf | yum | zypper | opkg | apk | pacman | emerge | unknown
 detect_pkg_manager() {
     if command -v apt-get >/dev/null 2>&1; then
         echo "apt"
@@ -120,6 +120,8 @@ detect_pkg_manager() {
         echo "yum"
     elif command -v zypper >/dev/null 2>&1; then
         echo "zypper"
+    elif command -v opkg >/dev/null 2>&1; then
+        echo "opkg"
     elif command -v apk >/dev/null 2>&1; then
         echo "apk"
     elif command -v pacman >/dev/null 2>&1; then
@@ -135,6 +137,7 @@ detect_pkg_manager() {
 iproute_pkg_name() {
     case "$(detect_pkg_manager)" in
         dnf|yum) echo "iproute iproute-tc" ;;
+        opkg)    echo "ip-full tc-full" ;;
         emerge)  echo "net-misc/iproute2" ;;
         *)       echo "iproute2" ;;
     esac
@@ -143,6 +146,7 @@ iproute_pkg_name() {
 install_iproute_pkgs() {
     case "$(detect_pkg_manager)" in
         dnf|yum) pkg_install iproute iproute-tc ;;
+        opkg)    pkg_install ip-full tc-full ;;
         emerge)  pkg_install net-misc/iproute2 ;;
         *)       pkg_install iproute2 ;;
     esac
@@ -156,6 +160,7 @@ pkg_update_index() {
         dnf)    run_privileged dnf makecache -q >/dev/null 2>&1 || true ;;
         yum)    run_privileged yum makecache -q >/dev/null 2>&1 || true ;;
         zypper) run_privileged zypper --non-interactive refresh -q >/dev/null 2>&1 || true ;;
+        opkg)   run_privileged opkg update >/dev/null 2>&1 || true ;;
         apk)    run_privileged apk update -q >/dev/null 2>&1 || true ;;
         pacman) run_privileged pacman -Sy --noconfirm >/dev/null 2>&1 ;;
         emerge) ;;
@@ -169,10 +174,10 @@ pkg_install() {
     pm=$(detect_pkg_manager)
     if [ "$pm" = "unknown" ]; then
         if [ "$INSTALL_LANG" = "zh" ]; then
-            echo "错误：未找到支持的包管理器（apt/dnf/yum/zypper/apk/pacman）。"
+            echo "错误：未找到支持的包管理器（apt/dnf/yum/zypper/opkg/apk/pacman）。"
             echo "请手动安装：$(iproute_pkg_name)（提供 tc、ip 命令）"
         else
-            echo "Error: no supported package manager found (apt/dnf/yum/zypper/apk/pacman)."
+            echo "Error: no supported package manager found (apt/dnf/yum/zypper/opkg/apk/pacman)."
             echo "Install manually: $(iproute_pkg_name) (provides tc, ip)"
         fi
         return 1
@@ -186,6 +191,7 @@ pkg_install() {
             dnf)    run_privileged dnf install -y "$pkg" >/dev/null 2>&1 ;;
             yum)    run_privileged yum install -y "$pkg" >/dev/null 2>&1 ;;
             zypper) run_privileged zypper --non-interactive install -y "$pkg" >/dev/null 2>&1 ;;
+            opkg)   run_privileged opkg install "$pkg" >/dev/null 2>&1 ;;
             apk)    run_privileged apk add --no-cache "$pkg" >/dev/null 2>&1 ;;
             pacman) run_privileged pacman -S --noconfirm --needed "$pkg" >/dev/null 2>&1 ;;
             emerge) run_privileged emerge -q "$pkg" >/dev/null 2>&1 ;;
@@ -235,6 +241,7 @@ install_yq_binary() {
     url="https://github.com/mikefarah/yq/releases/latest/download/${asset}"
     msg install_yq
     echo "  → ${asset}"
+    run_privileged mkdir -p /usr/local/bin
     run_privileged rm -f /usr/local/bin/yq
     download_file "$url" /usr/local/bin/yq || return 1
     run_privileged chmod +x /usr/local/bin/yq
@@ -428,6 +435,13 @@ fi
 
 require_linux
 
+# OpenWrt and other minimal images may lack /usr/local/bin and /etc/profile.d.
+ensure_install_dirs() {
+    run_privileged mkdir -p /usr/local/bin /usr/local/lib/sysinfo /etc/sysinfo /etc/profile.d
+}
+
+ensure_install_dirs
+
 # Check and install dependencies
 check_and_install_deps
 
@@ -546,6 +560,11 @@ run_privileged tee /usr/local/bin/sysinfo > /dev/null << 'CMD'
 exec /usr/local/bin/sysinfo-cli.sh "$@"
 CMD
 run_privileged chmod +x /usr/local/bin/sysinfo
+
+# OpenWrt default PATH omits /usr/local/bin — symlink CLI into /usr/bin.
+if [ "$(detect_pkg_manager)" = "opkg" ]; then
+    run_privileged ln -sf /usr/local/bin/sysinfo /usr/bin/sysinfo
+fi
 
 # Persist language selection for runtime dashboard/help (seed before apply)
 echo "$INSTALL_LANG" | run_privileged tee /etc/sysinfo-lang >/dev/null

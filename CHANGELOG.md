@@ -20,10 +20,13 @@
 - **`install.sh` root 模式**：新增 `run_privileged()`，root 容器/安装时不再依赖 `sudo`。
   **`install.sh` as root**: `run_privileged()` runs commands directly when EUID=0 (no `sudo` required).
 
+- **OpenWrt / opkg 支持**：`install.sh` 识别 `opkg`，安装 `ip-full` + `tc-full`；`sysinfo` 链到 `/usr/bin`（OpenWrt PATH 不含 `/usr/local/bin`）。Docker 冒烟测试镜像 `openwrt/rootfs:x86_64-24.10.7`。
+  **OpenWrt / opkg**: `install.sh` detects `opkg`, installs `ip-full` + `tc-full`; symlinks `sysinfo` into `/usr/bin`. Docker smoke test uses `openwrt/rootfs:x86_64-24.10.7`.
+
 ### Changed · 变更
 
-- **多发行版 Linux 安装**：`install.sh` 自动识别 apt / dnf / yum / apk / pacman / zypper / emerge；RHEL 系安装 `iproute`，其余多为 `iproute2`；仅支持 Linux（不支持 macOS）。
-  **Multi-distro Linux install**: `install.sh` auto-detects apt/dnf/yum/apk/pacman/zypper/emerge; RHEL family gets `iproute`, others `iproute2`; Linux only (not macOS).
+- **多发行版 Linux 安装**：`install.sh` 自动识别 apt / dnf / yum / opkg / apk / pacman / zypper / emerge；RHEL 系安装 `iproute`，OpenWrt 为 `ip-full`+`tc-full`，其余多为 `iproute2`；仅支持 Linux（不支持 macOS）。
+  **Multi-distro Linux install**: `install.sh` auto-detects apt/dnf/yum/opkg/apk/pacman/zypper/emerge; RHEL gets `iproute`, OpenWrt `ip-full`+`tc-full`, others `iproute2`; Linux only (not macOS).
 
 - **yq 按 CPU 架构下载**（amd64 / arm64 / arm），修复 ARM 服务器上 `Exec format error` 导致 YAML 配置无法读取的问题。
   **yq downloaded per CPU arch** (amd64/arm64/arm); fixes `Exec format error` on ARM hosts breaking YAML config reads.

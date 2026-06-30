@@ -1,0 +1,3 @@
+# Copy to .docker-sudo (gitignored) for password-based sudo docker access.
+# Or: export DOCKER_SUDO_PASSWORD=your_sudo_password
+# Put your sudo password on the next line (this file is tracked; .docker-sudo is not):

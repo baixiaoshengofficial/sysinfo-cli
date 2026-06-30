@@ -1,0 +1,27 @@
+# Multi-distro install smoke image — exercises install.sh on any Linux base.
+# Build examples:
+#   docker build -f docker/Dockerfile.install-test -t sysinfo-cli:test-debian .
+#   docker build -f docker/Dockerfile.install-test --build-arg BASE_IMAGE=fedora:40 -t sysinfo-cli:test-fedora .
+#   docker build -f docker/Dockerfile.install-test --build-arg BASE_IMAGE=alpine:3.20 -t sysinfo-cli:test-alpine .
+#
+# Distro matrix (make docker-build-distros builds all):
+#   debian:bookworm-slim  ubuntu:24.04  fedora:40  rockylinux:9
+#   alpine:3.20  archlinux:latest  opensuse/leap:15.6  openwrt/rootfs:x86_64-24.10.7
+
+ARG BASE_IMAGE=debian:bookworm-slim
+FROM ${BASE_IMAGE}
+
+COPY docker/bootstrap-test.sh /usr/local/bin/bootstrap-test.sh
+RUN chmod +x /usr/local/bin/bootstrap-test.sh && sh /usr/local/bin/bootstrap-test.sh
+
+WORKDIR /opt/sysinfo-cli
+COPY . .
+
+RUN chmod +x install.sh uninstall.sh src/*.sh scripts/*.sh tests/*.sh 2>/dev/null || true && \
+    rm -f /usr/local/bin/yq && \
+    bash install.sh --lang en && \
+    sysinfo -h >/dev/null && \
+    command -v tc >/dev/null && \
+    /usr/local/bin/yq --version | grep -qi mikefarah
+
+CMD ["/bin/bash"]

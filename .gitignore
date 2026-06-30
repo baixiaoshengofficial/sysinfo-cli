@@ -8,3 +8,6 @@ tests/*.log
 
 # Local IDE assistant notes (not for version control)
 CODEBUDDY.md
+
+# Local docker sudo password (never commit)
+.docker-sudo
