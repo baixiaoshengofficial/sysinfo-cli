@@ -122,21 +122,22 @@ stats_get_str() {
     grep -o "\"$key\":\"[^\"]*\"" "$SYSINFO_STATS_FILE" 2>/dev/null | cut -d'"' -f4
 }
 
-# Terminal display width for UTF-8 labels.
-# ASCII/narrow = 1 column, CJK (3-byte) = 2 columns. Derived from the byte
-# vs. character count so it is locale-independent (awk length() counts bytes
-# on mawk and would mis-size CJK labels, breaking colon alignment).
+# Terminal display width for labels.
+# ASCII = 1 column. Non-ASCII labels in this project are CJK UTF-8 (3 bytes,
+# 2 columns), so count ASCII bytes directly and treat the rest as wide chars.
+# This avoids locale-dependent wc -m behavior on OpenWrt/BusyBox.
 display_width() {
     local text="$1"
-    local bytes chars
+    local bytes ascii_bytes non_ascii_bytes
     bytes=$(printf '%s' "$text" | wc -c)
-    chars=$(printf '%s' "$text" | LC_ALL=C.UTF-8 wc -m)
+    ascii_bytes=$(printf '%s' "$text" | LC_ALL=C tr -cd ' -~' | wc -c)
     bytes=${bytes//[^0-9]/}
-    chars=${chars//[^0-9]/}
+    ascii_bytes=${ascii_bytes//[^0-9]/}
     [ -n "$bytes" ] || bytes=0
-    [ -n "$chars" ] || chars=0
-    # Wide chars (3+ extra bytes over 1) add one extra column each.
-    echo $(( chars + (bytes - chars) / 2 ))
+    [ -n "$ascii_bytes" ] || ascii_bytes=0
+    non_ascii_bytes=$((bytes - ascii_bytes))
+    [ "$non_ascii_bytes" -lt 0 ] && non_ascii_bytes=0
+    echo $((ascii_bytes + (non_ascii_bytes / 3) * 2))
 }
 
 # Pad a label to a target display width (accounting for double-width CJK).

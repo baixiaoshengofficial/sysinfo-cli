@@ -88,6 +88,13 @@ assert_contains "$DASHBOARD" 'Throttle[[:space:]]*: .*On' "dashboard throttle en
 assert_contains "$DASHBOARD" 'Throttle Rule[[:space:]]*: .*95%.*10mbps' "dashboard throttle rule display"
 assert_contains "$DASHBOARD" 'Throttle Status[[:space:]]*: .*Idle|Throttle Status[[:space:]]*: .*Failed|Throttle Status[[:space:]]*: .*Active' "dashboard throttle status display"
 
+BANNER_ZH=$(SYSINFO_LANG=zh bash /usr/local/lib/sysinfo/sysinfo_banner.sh 2>&1 | strip_ansi)
+assert_contains "$BANNER_ZH" '系统实时监控' "login banner zh title"
+assert_contains "$BANNER_ZH" '^核心信息$' "login banner reuses section style"
+assert_contains "$BANNER_ZH" '^  CPU 型号  : ' "login banner aligns CJK CPU label"
+assert_contains "$BANNER_ZH" '^  IPv4 地址 : ' "login banner aligns CJK IPv4 label"
+assert_contains "$BANNER_ZH" '^  下载速度  : .*上传速度  : ' "login banner aligns CJK network row"
+
 THROTTLE_DIAG=$(bash /opt/sysinfo-cli/scripts/test_throttle.sh 2>&1)
 assert_contains "$THROTTLE_DIAG" 'Diagnostic Complete' "throttle diagnostic completes"
 assert_contains "$THROTTLE_DIAG" 'Throttle enabled: true' "throttle diagnostic sees enabled state"

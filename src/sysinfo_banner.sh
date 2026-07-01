@@ -49,10 +49,112 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     export SYSINFO_BANNER_SHOWN=1
 fi
 
-# Language priority: /etc/sysinfo-lang (set via display.language) > system locale.
-_banner_lang=""
+load_core_helpers() {
+    local script_dir core
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    for core in \
+        "${SYSINFO_CORE_SCRIPT:-}" \
+        "$script_dir/sysinfo_core.sh" \
+        "/usr/local/bin/sysinfo_core.sh" \
+        "/etc/profile.d/sysinfo_core.sh"; do
+        [ -n "$core" ] && [ -r "$core" ] || continue
+        # Source only helper/function definitions. sysinfo_core.sh renders only
+        # when executed directly, so sourcing it is safe for the login banner.
+        source "$core"
+        return 0
+    done
+    return 1
+}
+
+load_core_helpers 2>/dev/null || true
+
+if ! declare -f display_width >/dev/null 2>&1; then
+    display_width() {
+        local text="$1" bytes ascii_bytes non_ascii_bytes
+        bytes=$(printf '%s' "$text" | wc -c)
+        ascii_bytes=$(printf '%s' "$text" | LC_ALL=C tr -cd ' -~' | wc -c)
+        bytes=${bytes//[^0-9]/}; ascii_bytes=${ascii_bytes//[^0-9]/}
+        [ -n "$bytes" ] || bytes=0
+        [ -n "$ascii_bytes" ] || ascii_bytes=0
+        non_ascii_bytes=$((bytes - ascii_bytes))
+        [ "$non_ascii_bytes" -lt 0 ] && non_ascii_bytes=0
+        echo $((ascii_bytes + (non_ascii_bytes / 3) * 2))
+    }
+fi
+
+if ! declare -f pad_label >/dev/null 2>&1; then
+    pad_label() {
+        local text="$1" target=${2:-14} width spaces i
+        width=$(display_width "$text")
+        spaces=$((target - width))
+        [ "$spaces" -lt 0 ] && spaces=0
+        printf "%s" "$text"
+        for ((i = 0; i < spaces; i++)); do printf ' '; done
+    }
+fi
+
+if ! declare -f pad_label_right >/dev/null 2>&1; then
+    pad_label_right() {
+        local text="$1" target=${2:-8} width spaces i
+        width=$(display_width "$text")
+        spaces=$((target - width))
+        [ "$spaces" -lt 0 ] && spaces=0
+        for ((i = 0; i < spaces; i++)); do printf ' '; done
+        printf "%s" "$text"
+    }
+fi
+
+if ! declare -f calc_label_width >/dev/null 2>&1; then
+    calc_label_width() {
+        local max=0 w item
+        for item in "$@"; do
+            w=$(display_width "$item")
+            [ "$w" -gt "$max" ] && max=$w
+        done
+        echo "$max"
+    }
+fi
+
+if ! declare -f dash_kv >/dev/null 2>&1; then
+    dash_kv() {
+        local label=$1 value=$2 label_w=$3
+        printf "  %s : %b\n" "$(pad_label "$label" "$label_w")" "$value"
+    }
+fi
+
+if ! declare -f dash_kv2 >/dev/null 2>&1; then
+    : "${SYSINFO_VAL_W:=32}"
+    dash_kv2() {
+        local l1=$1 v1=$2 l2=$3 v2=$4 label_w=$5
+        local vw=${6:-$SYSINFO_VAL_W}
+        printf "  %s : %-${vw}s  %s : %s\n" \
+            "$(pad_label "$l1" "$label_w")" "$v1" \
+            "$(pad_label "$l2" "$label_w")" "$v2"
+    }
+fi
+
+if ! declare -f sysinfo_tmp_dir >/dev/null 2>&1; then
+    sysinfo_tmp_dir() {
+        local dir="${SYSINFO_TMP_DIR:-/var/tmp}"
+        if [ ! -d "$dir" ]; then
+            mkdir -p "$dir" 2>/dev/null || dir="/tmp"
+        fi
+        echo "$dir"
+    }
+fi
+
+run_quick() {
+    if command -v timeout >/dev/null 2>&1; then
+        timeout 1 "$@"
+    else
+        "$@"
+    fi
+}
+
+# Language priority: explicit env > /etc/sysinfo-lang > system locale.
+_banner_lang="${SYSINFO_LANG:-}"
 if [ -f /etc/sysinfo-lang ]; then
-    _banner_lang=$(tr -d ' \t\r\n' < /etc/sysinfo-lang 2>/dev/null)
+    [ -n "$_banner_lang" ] || _banner_lang=$(tr -d ' \t\r\n' < /etc/sysinfo-lang 2>/dev/null)
 fi
 if [ -z "$_banner_lang" ]; then
     case "${LC_ALL:-${LANG:-}}" in
@@ -60,11 +162,15 @@ if [ -z "$_banner_lang" ]; then
         *) _banner_lang="en" ;;
     esac
 fi
+case "$(printf '%s' "$_banner_lang" | tr 'A-Z' 'a-z')" in
+    zh|zh-cn|cn|chinese) _banner_lang="zh" ;;
+    *) _banner_lang="en" ;;
+esac
 
 if [ "$_banner_lang" = "zh" ]; then
     L_TITLE="系统实时监控"
-    L_CORE="[核心信息]"
-    L_RES="[资源使用]"
+    L_CORE="核心信息"
+    L_RES="资源使用"
     L_CPU="CPU 型号"
     L_IPV4="IPv4 地址"
     L_UPTIME="运行时间"
@@ -73,10 +179,10 @@ if [ "$_banner_lang" = "zh" ]; then
     L_MEM="内存使用"
     L_USERS="登录用户"
     L_SWAP="交换分区"
-    L_NET="[网络状态]"
+    L_NET="网络状态"
     L_DOWNLOAD="下载速度"
     L_UPLOAD="上传速度"
-    L_DISK="[磁盘状态]"
+    L_DISK="磁盘状态"
     L_MNT="挂载点"
     L_SIZE="总大小"
     L_USED="已用"
@@ -84,8 +190,8 @@ if [ "$_banner_lang" = "zh" ]; then
     L_PROG="进度"
 else
     L_TITLE="System Information Dashboard"
-    L_CORE="[Core Info]"
-    L_RES="[Resource Usage]"
+    L_CORE="Core Information"
+    L_RES="Resource Usage"
     L_CPU="CPU Model"
     L_IPV4="IPv4 Addr"
     L_UPTIME="Uptime"
@@ -94,10 +200,10 @@ else
     L_MEM="Memory"
     L_USERS="Users"
     L_SWAP="Swap"
-    L_NET="[Network]"
+    L_NET="Network"
     L_DOWNLOAD="Download Speed"
     L_UPLOAD="Upload Speed"
-    L_DISK="[Disk Status]"
+    L_DISK="Disk"
     L_MNT="Mount Point"
     L_SIZE="Size"
     L_USED="Used"
@@ -105,18 +211,22 @@ else
     L_PROG="Progress"
 fi
 
+if ! declare -f draw_bar >/dev/null 2>&1; then
 draw_bar() {
     local percent=${1:-0}
+    local width=${2:-10}
     [[ "$percent" =~ ^[0-9]+$ ]] || percent=0
     [ "$percent" -gt 100 ] && percent=100
-    local filled=$((percent / 10))
-    local empty=$((10 - filled))
+    local filled=$((percent * width / 100))
+    local empty=$((width - filled))
     local i
     # Solid blocks: white (used) + gray (free).
     for ((i=0; i<filled; i++)); do printf '\033[97m█\033[0m'; done
     for ((i=0; i<empty; i++)); do printf '\033[90m█\033[0m'; done
 }
+fi
 
+if ! declare -f get_cpu_core_count >/dev/null 2>&1; then
 get_cpu_core_count() {
     local cores=""
     local cpuinfo_file="${SYSINFO_CPUINFO_FILE:-/proc/cpuinfo}"
@@ -156,8 +266,9 @@ get_cpu_core_count() {
     [[ "$cores" =~ ^[0-9]+$ ]] && [ "$cores" -gt 0 ] || cores="1"
     echo "$cores"
 }
+fi
 
-CPU_MODEL=$(timeout 1 awk -F': ' '/model name/{print $2; exit}' /proc/cpuinfo 2>/dev/null)
+CPU_MODEL=$(run_quick awk -F': ' '/model name/{print $2; exit}' /proc/cpuinfo 2>/dev/null)
 CPU_MODEL=${CPU_MODEL:-N/A}
 CPU_CORES=$(get_cpu_core_count | tr -d '\r')
 if [ "$_banner_lang" = "zh" ]; then
@@ -168,28 +279,28 @@ else
     CPU_CORE_TEXT="${CPU_CORES} cores"
 fi
 
-IP_V4=$(timeout 1 hostname -I 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i !~ /:/) {print $i; exit}}')
+IP_V4=$(run_quick hostname -I 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i !~ /:/) {print $i; exit}}')
 IP_V4=${IP_V4:-N/A}
 
-UPTIME=$(timeout 1 uptime -p 2>/dev/null | sed 's/^up //')
+UPTIME=$(run_quick uptime -p 2>/dev/null | sed 's/^up //')
 UPTIME=${UPTIME:-N/A}
 
-LOAD_AVG=$(timeout 1 awk '{print $1}' /proc/loadavg 2>/dev/null)
+LOAD_AVG=$(run_quick awk '{print $1}' /proc/loadavg 2>/dev/null)
 LOAD_AVG=${LOAD_AVG:-N/A}
 
-PROCESSES=$(timeout 1 sh -c 'ps ax 2>/dev/null | wc -l' | tr -d ' ')
+PROCESSES=$(run_quick sh -c 'ps ax 2>/dev/null | wc -l' | tr -d ' ')
 PROCESSES=${PROCESSES:-N/A}
 
-USERS_LOGGED=$(timeout 1 sh -c 'who 2>/dev/null | wc -l' | tr -d ' ')
+USERS_LOGGED=$(run_quick sh -c 'who 2>/dev/null | wc -l' | tr -d ' ')
 USERS_LOGGED=${USERS_LOGGED:-N/A}
 
-MEM_USED=$(timeout 1 free -h 2>/dev/null | awk 'NR==2{print $3 " / " $2}')
+MEM_USED=$(run_quick free -h 2>/dev/null | awk 'NR==2{print $3 " / " $2}')
 MEM_USED=${MEM_USED:-N/A}
 
-SWAP_USAGE=$(timeout 1 free -h 2>/dev/null | awk 'NR==3{if ($2 == "0B" || $2 == "0") print "None"; else print $3 " / " $2}')
+SWAP_USAGE=$(run_quick free -h 2>/dev/null | awk 'NR==3{if ($2 == "0B" || $2 == "0") print "None"; else print $3 " / " $2}')
 SWAP_USAGE=${SWAP_USAGE:-N/A}
 
-NET_STATS_FILE="/var/tmp/sysinfo_banner_net_stats_${USER:-root}"
+NET_STATS_FILE="$(sysinfo_tmp_dir)/sysinfo_banner_net_stats_${USER:-root}"
 RX_BYTES=0
 TX_BYTES=0
 while read -r _ rx tx; do
@@ -225,30 +336,43 @@ echo -e "\033[1;36m=============================================================
 echo -e "  \033[1m$L_TITLE\033[0m - $(date +'%Y-%m-%d %H:%M:%S')"
 echo -e "\033[1;36m================================================================\033[0m"
 
+LBL_W=$(calc_label_width \
+    "$L_CPU" "$L_IPV4" "$L_UPTIME" \
+    "$L_LOAD" "$L_PROCS" "$L_MEM" "$L_USERS" "$L_SWAP" \
+    "$L_DOWNLOAD" "$L_UPLOAD")
+
 echo -e "\033[0;32m$L_CORE\033[0m"
-printf "  %-14s : %s\n" "$L_CPU" "$CPU_MODEL ($CPU_CORE_TEXT)"
-printf "  %-14s : %s\n" "$L_IPV4" "$IP_V4"
-printf "  %-14s : %s\n" "$L_UPTIME" "$UPTIME"
+dash_kv "$L_CPU" "$CPU_MODEL ($CPU_CORE_TEXT)" "$LBL_W"
+dash_kv "$L_IPV4" "$IP_V4" "$LBL_W"
+dash_kv "$L_UPTIME" "$UPTIME" "$LBL_W"
 
 echo -e "\033[0;32m$L_RES\033[0m"
-printf "  %-14s : %-18s %-12s : %s\n" "$L_LOAD" "$LOAD_AVG" "$L_PROCS" "$PROCESSES"
-printf "  %-14s : %-18s %-12s : %s\n" "$L_MEM" "$MEM_USED" "$L_USERS" "$USERS_LOGGED"
-printf "  %-14s : %s\n" "$L_SWAP" "$SWAP_USAGE"
+dash_kv2 "$L_LOAD" "$LOAD_AVG" "$L_PROCS" "$PROCESSES" "$LBL_W"
+dash_kv2 "$L_MEM" "$MEM_USED" "$L_USERS" "$USERS_LOGGED" "$LBL_W"
+dash_kv "$L_SWAP" "$SWAP_USAGE" "$LBL_W"
 
 echo -e "\033[0;32m$L_NET\033[0m"
-printf "  %-14s : %-18s %-12s : %s\n" "$L_DOWNLOAD" "$RX_SPEED_FMT" "$L_UPLOAD" "$TX_SPEED_FMT"
+dash_kv2 "$L_DOWNLOAD" "$RX_SPEED_FMT" "$L_UPLOAD" "$TX_SPEED_FMT" "$LBL_W"
 
 echo -e "\033[0;32m$L_DISK\033[0m"
-printf "  %-18s %-8s %-8s %-8s %-15s\n" "$L_MNT" "$L_SIZE" "$L_USED" "$L_PERC" "$L_PROG"
+DISK_MNT_W=18
+DISK_NUM_W=8
+printf "  %s %s %s %s  %s\n" \
+    "$(pad_label "$L_MNT" "$DISK_MNT_W")" \
+    "$(pad_label_right "$L_SIZE" "$DISK_NUM_W")" \
+    "$(pad_label_right "$L_USED" "$DISK_NUM_W")" \
+    "$(pad_label_right "$L_PERC" "$DISK_NUM_W")" \
+    "$L_PROG"
 echo -e "  -------------------------------------------------------------"
 df -h -x tmpfs -x devtmpfs -x squashfs -x debugfs -x overlay -x efivarfs 2>/dev/null | tail -n +2 | while IFS=' ' read -r _ size used _ perc mnt _; do
     [ -n "$mnt" ] || continue
     [[ "$mnt" == /* ]] || continue
     [[ "$mnt" == /boot/efi || "$mnt" == /boot ]] && continue
-    [ ${#mnt} -gt 18 ] && mnt="${mnt:0:15}..."
+    [ ${#mnt} -gt "$DISK_MNT_W" ] && mnt="${mnt:0:$((DISK_MNT_W - 3))}..."
     PERC_NUM=$(echo "$perc" | tr -d '%')
-    printf "  %-18s %-8s %-8s %-8s [" "$mnt" "$size" "$used" "$perc"
-    draw_bar "$PERC_NUM"
+    printf "  %-${DISK_MNT_W}s %${DISK_NUM_W}s %${DISK_NUM_W}s %${DISK_NUM_W}s [" \
+        "$mnt" "$size" "$used" "$perc"
+    draw_bar "$PERC_NUM" 10
     printf "]\n"
 done
 echo -e "\033[1;36m================================================================\033[0m\n"

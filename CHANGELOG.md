@@ -60,6 +60,9 @@
 
 ### Fixed · 修复
 
+- 登录 banner 复用主面板的 UTF-8 对齐工具，修复中文标签、双列信息和磁盘表头在 SSH 登录时排版不齐的问题。
+  Login banner now reuses the main dashboard's UTF-8-aware alignment helpers, fixing misaligned Chinese labels, two-column rows, and disk headers on SSH login.
+
 - CPU 核心数显示改为优先读取 `/proc/cpuinfo`，并通过 `/sys/devices/system/cpu/online`、`lscpu`、`getconf`、`nproc` 兜底，避免缺少 `nproc` 或受可用 CPU 限制时显示错误。
   CPU core display now prefers `/proc/cpuinfo`, with `/sys/devices/system/cpu/online`, `lscpu`, `getconf`, and `nproc` fallbacks, avoiding incorrect counts when `nproc` is missing or constrained.
 
