@@ -10,7 +10,7 @@ LANG_CHOICE=""
 
 detect_install_lang() {
     local input="${1:-}"
-    case "$(echo "$input" | tr '[:upper:]' '[:lower:]')" in
+    case "$(echo "$input" | tr 'A-Z' 'a-z')" in
         zh|zh-cn|cn|chinese) echo "zh" ;;
         en|en-us|english) echo "en" ;;
         *)

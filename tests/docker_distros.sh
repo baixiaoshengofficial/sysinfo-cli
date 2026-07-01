@@ -104,6 +104,7 @@ run_one() {
             sysinfo -h 2>&1 | grep -qi sysinfo
             ${sysinfo_smoke}
             /usr/local/bin/yq eval '.display.language' /etc/sysinfo/config.yaml | grep -qE 'en|zh|auto'
+            bash /opt/sysinfo-cli/tests/docker_regression.sh
         ")
 
     if command -v timeout >/dev/null 2>&1; then

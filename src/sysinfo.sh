@@ -32,7 +32,7 @@ run_privileged() {
 
 # Check if yq is installed
 check_yq() {
-    if ! command -v yq >/dev/null 2>&1; then
+    if ! _yq_bin >/dev/null 2>&1; then
         echo "Error: 'yq' is required for YAML configuration."
         echo ""
         echo "Install yq:"
@@ -120,7 +120,7 @@ is_applied_config_true() {
 
 normalize_config_traffic_limit() {
     local raw
-    raw=$(echo "${1:-}" | tr '[:lower:]' '[:upper:]')
+    raw=$(echo "${1:-}" | tr 'a-z' 'A-Z')
     raw="${raw// /}"
 
     case "$raw" in
@@ -226,7 +226,7 @@ normalize_lang() {
     local raw="${1:-}"
     raw="${raw#\"}"; raw="${raw%\"}"
     raw="${raw#\'}"; raw="${raw%\'}"
-    case "$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]' | tr -d ' \t\r\n')" in
+    case "$(printf '%s' "$raw" | tr 'A-Z' 'a-z' | tr -d ' \t\r\n')" in
         zh|zh-cn|cn|chinese) echo "zh" ;;
         en|en-us|english) echo "en" ;;
         auto|"") echo "" ;;

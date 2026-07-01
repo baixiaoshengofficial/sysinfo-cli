@@ -19,7 +19,7 @@ NOTIFY_STATE_FILE="${SYSINFO_NOTIFY_STATE:-/var/tmp/sysinfo-notify-state-${USER:
 
 # Fallbacks so the module is safe even if sourced standalone.
 if ! declare -f tolower >/dev/null 2>&1; then
-    tolower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+    tolower() { printf '%s' "$1" | tr 'A-Z' 'a-z'; }
 fi
 if ! declare -f get_config >/dev/null 2>&1; then
     get_config() { echo "${2:-}"; }

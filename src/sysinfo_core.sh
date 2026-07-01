@@ -24,10 +24,18 @@ run_privileged() {
 
 # Case conversion helper (compatible with both bash and zsh)
 tolower() {
-    echo "$1" | tr '[:upper:]' '[:lower:]'
+    echo "$1" | tr 'A-Z' 'a-z'
 }
 toupper() {
-    echo "$1" | tr '[:lower:]' '[:upper:]'
+    echo "$1" | tr 'a-z' 'A-Z'
+}
+
+sysinfo_tmp_dir() {
+    local dir="${SYSINFO_TMP_DIR:-/var/tmp}"
+    if [ ! -d "$dir" ]; then
+        mkdir -p "$dir" 2>/dev/null || dir="/tmp"
+    fi
+    echo "$dir"
 }
 
 # Sum RX/TX byte counters across all non-loopback interfaces from /proc/net/dev.
@@ -461,9 +469,9 @@ update_traffic_stats() {
     local now_ts=$(date +%s)
     local current_year_month=$(date +%Y-%m)
     local cycle_reset_ts
-    cycle_reset_ts=$(_cycle_reset_ts "$reset_day" "$current_year_month" "$now_ts")
+    cycle_reset_ts=$(_cycle_reset_ts "$reset_day" "$current_year_month" "$now_ts" 2>/dev/null || echo "")
 
-    if [ "$last_update" -lt "$cycle_reset_ts" ]; then
+    if [[ "$cycle_reset_ts" =~ ^[0-9]+$ ]] && [ "$last_update" -lt "$cycle_reset_ts" ]; then
         perform_reset
         return 0
     fi
@@ -496,7 +504,7 @@ update_traffic_stats() {
     _SYSINFO_RUNTIME_RX=$rx_bytes
     _SYSINFO_RUNTIME_TX=$tx_bytes
 
-    local persist_ts_file="/var/tmp/sysinfo_traffic_persist_ts_${USER:-root}"
+    local persist_ts_file="$(sysinfo_tmp_dir)/sysinfo_traffic_persist_ts_${USER:-root}"
     local last_persist=0
     [ -f "$persist_ts_file" ] && last_persist=$(cat "$persist_ts_file" 2>/dev/null)
     [[ "$last_persist" =~ ^[0-9]+$ ]] || last_persist=0
@@ -516,10 +524,10 @@ _cycle_reset_ts() {
     local now_ts=$3
 
     local month_days effective_day this_cycle_reset_ts
-    month_days=$(date -d "$current_year_month-01 +1 month -1 day" +%d)
+    month_days=$(date -d "$current_year_month-01 +1 month -1 day" +%d 2>/dev/null) || return 1
     effective_day=$reset_day
     [ "$effective_day" -gt "$month_days" ] && effective_day=$month_days
-    this_cycle_reset_ts=$(date -d "$current_year_month-$effective_day 00:00:00" +%s)
+    this_cycle_reset_ts=$(date -d "$current_year_month-$effective_day 00:00:00" +%s 2>/dev/null) || return 1
 
     if [ "$now_ts" -ge "$this_cycle_reset_ts" ]; then
         echo "$this_cycle_reset_ts"
@@ -527,11 +535,11 @@ _cycle_reset_ts() {
     fi
 
     local prev_year_month prev_month_days prev_effective_day
-    prev_year_month=$(date -d "$current_year_month-01 -1 month" +%Y-%m)
-    prev_month_days=$(date -d "$prev_year_month-01 +1 month -1 day" +%d)
+    prev_year_month=$(date -d "$current_year_month-01 -1 month" +%Y-%m 2>/dev/null) || return 1
+    prev_month_days=$(date -d "$prev_year_month-01 +1 month -1 day" +%d 2>/dev/null) || return 1
     prev_effective_day=$reset_day
     [ "$prev_effective_day" -gt "$prev_month_days" ] && prev_effective_day=$prev_month_days
-    date -d "$prev_year_month-$prev_effective_day 00:00:00" +%s
+    date -d "$prev_year_month-$prev_effective_day 00:00:00" +%s 2>/dev/null
 }
 
 # Get traffic statistics for display
@@ -1051,8 +1059,8 @@ count_running_tasks() {
 maybe_check_and_apply_limit() {
     local perc=$1
     local interval="${SYSINFO_THROTTLE_CHECK_INTERVAL:-5}"
-    local stamp_file="/var/tmp/sysinfo_throttle_check_ts_${USER:-root}"
-    local cache_file="/var/tmp/sysinfo_throttle_cache_${USER:-root}"
+    local stamp_file="$(sysinfo_tmp_dir)/sysinfo_throttle_check_ts_${USER:-root}"
+    local cache_file="$(sysinfo_tmp_dir)/sysinfo_throttle_cache_${USER:-root}"
     local now last=0 threshold
 
     now=$(date +%s)
@@ -1212,7 +1220,7 @@ _tc_has_active_limit() {
 
 # Read throttle runtime state for display without applying tc changes.
 _probe_throttle_runtime_for_display() {
-    local cache_file="/var/tmp/sysinfo_throttle_cache_${USER:-root}"
+    local cache_file="$(sysinfo_tmp_dir)/sysinfo_throttle_cache_${USER:-root}"
 
     if _tc_has_active_limit; then
         THROTTLE_RUNTIME_STATUS="limited"
@@ -1408,8 +1416,9 @@ RX_BYTES=$RX_TOTAL
 TX_BYTES=$TX_TOTAL
 
 # Try to get previous stats from temp file for speed calculation
-# Use /var/tmp for better permission handling
-NET_STATS_FILE="/var/tmp/sysinfo_net_stats_${USER:-root}"
+# Use /var/tmp for better permission handling; fall back to /tmp on systems
+# such as OpenWrt where /var/tmp may not exist.
+NET_STATS_FILE="$(sysinfo_tmp_dir)/sysinfo_net_stats_${USER:-root}"
 if [ -f "$NET_STATS_FILE" ]; then
     PREV_RX=$(cat "$NET_STATS_FILE" 2>/dev/null | cut -d' ' -f1 || echo "0")
     PREV_TX=$(cat "$NET_STATS_FILE" 2>/dev/null | cut -d' ' -f2 || echo "0")

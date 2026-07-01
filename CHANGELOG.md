@@ -25,6 +25,9 @@
 
 ### Changed · 变更
 
+- **Docker 回归测试**：多发行版测试从安装冒烟扩展到 NAT、流量显示、网速显示、限速配置/诊断、流量重置联动等关键路径。
+  **Docker regression tests**: multi-distro testing now covers NAT, traffic display, speed display, throttle config/diagnostics, and traffic reset linkage in addition to install smoke checks.
+
 - **NAT 配置结构**：新增 `nat.ranges` / `nat.open_ports` 表示服务商开放的端口段，`nat.mappings` / `nat.forwards` 表示实际 `source-port -> target-port` 映射；旧的 `mappings: [48081-48089]` 会按开放端口段显示。
   **NAT config structure**: added `nat.ranges` / `nat.open_ports` for provider-opened port ranges and `nat.mappings` / `nat.forwards` for actual `source-port -> target-port` rules; old `mappings: [48081-48089]` is displayed as an opened range.
 
