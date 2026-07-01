@@ -245,9 +245,11 @@ sudo ./install.sh</code></pre>
 
 nat:
   enabled: false
+  ranges:
+    - "48081-48089"                # 服务商开放的端口段
   mappings:
-    - "8080:80"                    # 公网端口:内网端口
-    - "9000:3000"
+    - "48081:80"                   # 源端口:目标端口
+    - "48082:3000"
 
 traffic:
   enabled: true
@@ -282,9 +284,9 @@ notify:
 
       <div class="callout info">
         <strong data-zh="关于 NAT" data-en="About NAT">关于 NAT</strong>
-        <span data-zh="NAT 配置只用于显示端口映射，不会修改 iptables 或 nftables。"
-              data-en="NAT config is display-only — it won't configure iptables/nftables for you.">
-          NAT 配置只用于显示端口映射，不会修改 iptables 或 nftables。
+        <span data-zh="NAT 配置用于显示服务商开放的端口段和你实际配置的端口映射，不会修改 iptables 或 nftables。"
+              data-en="NAT config displays provider-opened port ranges and your actual port mappings; it won't configure iptables/nftables for you.">
+          NAT 配置用于显示服务商开放的端口段和你实际配置的端口映射，不会修改 iptables 或 nftables。
         </span>
       </div>
     </article>

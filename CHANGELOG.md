@@ -25,6 +25,9 @@
 
 ### Changed · 变更
 
+- **NAT 配置结构**：新增 `nat.ranges` / `nat.open_ports` 表示服务商开放的端口段，`nat.mappings` / `nat.forwards` 表示实际 `source-port -> target-port` 映射；旧的 `mappings: [48081-48089]` 会按开放端口段显示。
+  **NAT config structure**: added `nat.ranges` / `nat.open_ports` for provider-opened port ranges and `nat.mappings` / `nat.forwards` for actual `source-port -> target-port` rules; old `mappings: [48081-48089]` is displayed as an opened range.
+
 - **多发行版 Linux 安装**：`install.sh` 自动识别 apt / dnf / yum / opkg / apk / pacman / zypper / emerge；RHEL 系安装 `iproute`，OpenWrt 为 `ip-full`+`tc-full`，其余多为 `iproute2`；仅支持 Linux（不支持 macOS）。
   **Multi-distro Linux install**: `install.sh` auto-detects apt/dnf/yum/opkg/apk/pacman/zypper/emerge; RHEL gets `iproute`, OpenWrt `ip-full`+`tc-full`, others `iproute2`; Linux only (not macOS).
 

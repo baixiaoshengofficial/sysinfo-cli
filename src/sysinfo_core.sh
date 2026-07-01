@@ -1492,12 +1492,26 @@ else
     CPU_CORE_TEXT="${CPU_CORES} cores"
 fi
 
-# Load NAT config if exists
+# Load NAT config if exists.
 NAT_RANGE=""
 if [ -f /etc/sysinfo-nat ]; then
-    NAT_RANGE=$(cat /etc/sysinfo-nat 2>/dev/null | xargs || echo "")
-    # Normalize "public:private" or "public-private" to "public->private".
-    NAT_RANGE=$(echo "$NAT_RANGE" | sed -E 's/([0-9]+)[:-]([0-9]+)/\1->\2/g')
+    NAT_RAW=$(cat /etc/sysinfo-nat 2>/dev/null | xargs || echo "")
+    if echo "$NAT_RAW" | grep -q 'ranges=.*;mappings='; then
+        NAT_OPEN=$(echo "$NAT_RAW" | sed -n 's/^ranges=\(.*\);mappings=.*/\1/p' | xargs 2>/dev/null)
+        NAT_MAPS=$(echo "$NAT_RAW" | sed -n 's/^.*;mappings=\(.*\)$/\1/p' | xargs 2>/dev/null)
+        NAT_MAPS=$(echo "$NAT_MAPS" | sed -E 's/([0-9]+)(:|->)([0-9]+)/\1->\3/g')
+        if [ "$SYSINFO_LANG" = "zh" ]; then
+            [ -n "$NAT_OPEN" ] && NAT_RANGE="开放: $NAT_OPEN"
+            [ -n "$NAT_MAPS" ] && NAT_RANGE="${NAT_RANGE:+$NAT_RANGE | }映射: $NAT_MAPS"
+        else
+            [ -n "$NAT_OPEN" ] && NAT_RANGE="Open: $NAT_OPEN"
+            [ -n "$NAT_MAPS" ] && NAT_RANGE="${NAT_RANGE:+$NAT_RANGE | }Map: $NAT_MAPS"
+        fi
+    else
+        NAT_RANGE="$NAT_RAW"
+        # Backward compatibility: normalize old "public:private" mappings.
+        NAT_RANGE=$(echo "$NAT_RANGE" | sed -E 's/([0-9]+):([0-9]+)/\1->\2/g')
+    fi
 fi
 
 # --- Print Dashboard ---

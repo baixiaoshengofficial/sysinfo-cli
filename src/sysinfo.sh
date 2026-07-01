@@ -136,6 +136,75 @@ normalize_config_traffic_limit() {
     esac
 }
 
+normalize_nat_entry() {
+    local value="${1:-}"
+    value="${value#\"}"; value="${value%\"}"
+    value="${value#\'}"; value="${value%\'}"
+    value=$(echo "$value" | tr -d ' \t\r\n')
+    printf '%s' "$value"
+}
+
+is_nat_range_entry() {
+    [[ "$1" =~ ^[0-9]+-[0-9]+$ ]]
+}
+
+normalize_nat_mapping_entry() {
+    local value
+    value=$(normalize_nat_entry "$1")
+    if [[ "$value" =~ ^([0-9]+)(:|->|-)([0-9]+)$ ]]; then
+        printf '%s:%s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[3]}"
+        return 0
+    fi
+    return 1
+}
+
+get_applied_config_list() {
+    local key="$1" value yq
+    yq=$(_yq_bin) || return 0
+    value=$("$yq" eval ".${key}[]" "$CONFIG_FILE" 2>/dev/null)
+    if [ -n "$value" ] && [ "$value" != "null" ]; then
+        printf '%s\n' "$value"
+    fi
+}
+
+build_nat_runtime_config() {
+    local ranges="" mappings="" item clean mapped
+
+    while IFS= read -r item; do
+        clean=$(normalize_nat_entry "$item")
+        [ -n "$clean" ] || continue
+        ranges="$ranges $clean"
+    done < <(get_applied_config_list "nat.ranges")
+
+    while IFS= read -r item; do
+        clean=$(normalize_nat_entry "$item")
+        [ -n "$clean" ] || continue
+        ranges="$ranges $clean"
+    done < <(get_applied_config_list "nat.open_ports")
+
+    while IFS= read -r item; do
+        clean=$(normalize_nat_entry "$item")
+        [ -n "$clean" ] || continue
+        if is_nat_range_entry "$clean"; then
+            ranges="$ranges $clean"
+        elif mapped=$(normalize_nat_mapping_entry "$clean"); then
+            mappings="$mappings $mapped"
+        fi
+    done < <(get_applied_config_list "nat.mappings")
+
+    while IFS= read -r item; do
+        mapped=$(normalize_nat_mapping_entry "$item") || continue
+        mappings="$mappings $mapped"
+    done < <(get_applied_config_list "nat.forwards")
+
+    ranges=$(echo "$ranges" | xargs 2>/dev/null)
+    mappings=$(echo "$mappings" | xargs 2>/dev/null)
+
+    if [ -n "$ranges" ] || [ -n "$mappings" ]; then
+        printf 'ranges=%s;mappings=%s\n' "$ranges" "$mappings"
+    fi
+}
+
 # Get a YAML sequence as newline-separated items (empty if absent/empty list).
 # Tries the explicit config file first, then the default path.
 get_config_list() {
@@ -219,14 +288,14 @@ apply_config() {
     local nat_enabled
     nat_enabled=$(is_applied_config_true "nat.enabled" && echo "true" || echo "false")
 
-    # Apply NAT mappings (record for display). Clear stale file when disabled
-    # or empty so the dashboard never shows outdated mappings.
+    # Apply NAT information (record for display). Ranges are provider-opened
+    # ports; mappings/forwards are source-port -> target-port rules.
     if $nat_enabled; then
-        local mappings
-        mappings=$(yq eval '.nat.mappings[]' "$CONFIG_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/ *$//')
-        if [ -n "$mappings" ]; then
-            echo "$mappings" | run_privileged tee /etc/sysinfo-nat >/dev/null 2>&1
-            echo "✓ NAT configured: $mappings"
+        local nat_runtime
+        nat_runtime=$(build_nat_runtime_config)
+        if [ -n "$nat_runtime" ]; then
+            echo "$nat_runtime" | run_privileged tee /etc/sysinfo-nat >/dev/null 2>&1
+            echo "✓ NAT configured: $nat_runtime"
         else
             run_privileged rm -f /etc/sysinfo-nat
             echo "✓ NAT enabled (no mappings configured)"
@@ -364,9 +433,11 @@ Configuration File Format (YAML):
 
   nat:
     enabled: false
+    ranges:
+      - "48081-48089"         # Provider-opened source port range
     mappings:
-      - "8080:80"
-      - "9000:3000"
+      - "48081:80"            # source-port:target-port
+      - "48082:3000"
 
   traffic:
     enabled: true

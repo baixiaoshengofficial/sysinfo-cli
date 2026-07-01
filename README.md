@@ -80,9 +80,11 @@ network:
 # NAT Port Mappings
 nat:
   enabled: false
+  ranges:
+    - "48081-48089"         # Provider-opened source port range
   mappings:
-    - "8080:80"
-    - "9000:3000"
+    - "48081:80"            # source-port:target-port
+    - "48082:3000"
 
 # Traffic Limit Configuration
 traffic:
@@ -170,6 +172,10 @@ sysinfo -h
 > Configuration is YAML-only (`-c` / `-r`). Legacy CLI configuration flags are deprecated.
 
 ## Configuration Parameters
+
+### NAT Parameters
+- `ranges` / `open_ports`: Provider-opened source port ranges (e.g., 48081-48089)
+- `mappings` / `forwards`: Actual port forwarding rules (e.g., 48081:80 or 48081-80)
 
 ### Traffic Parameters
 - `limit`: Traffic limit (e.g., 1T, 500G, 100M, UNLIMITED, or 0 for unlimited)

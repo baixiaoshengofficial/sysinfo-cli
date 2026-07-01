@@ -364,6 +364,11 @@ throttle:
   threshold: 95             <span class="cmt"># %</span>
   rate: "10mbps"
 
+nat:
+  enabled: true
+  ranges: ["48081-48089"]   <span class="cmt"># provider-opened ports</span>
+  mappings: ["48081:80"]    <span class="cmt"># source:target</span>
+
 display:
   language: "auto"          <span class="cmt"># auto | zh | en</span>
   show_traffic: true

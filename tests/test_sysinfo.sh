@@ -25,9 +25,11 @@ network:
 # NAT 端口映射
 nat:
   enabled: false
+  ranges:
+    - "48081-48089"
   mappings:
-    - "8080:80"
-    - "9000:3000"
+    - "48081:80"
+    - "48082:3000"
 
 # 流量限制配置
 traffic:

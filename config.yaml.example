@@ -11,7 +11,9 @@ network:
 # NAT Port Mappings
 nat:
   enabled: false
-  # Port mappings: public-port:private-port
+  # Provider-opened port ranges: startPort-endPort
+  ranges: []
+  # Port mappings: source-port:target-port
   mappings: []
 
 # Traffic Limit Configuration
