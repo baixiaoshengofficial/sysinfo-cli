@@ -57,37 +57,37 @@
     <!-- 介绍 -->
     <article id="intro" class="page active">
       <h1 data-zh="项目介绍" data-en="Introduction">项目介绍</h1>
-      <p class="lead" data-zh="sysinfo-cli 是一个用 Bash 写的 Linux 服务器状态面板。SSH 登录就能看到 CPU、内存、磁盘、网络等信息，不用额外装监控软件，也不跑后台进程。支持 Debian、Ubuntu、RHEL、Fedora、Alpine、Arch、openSUSE 等发行版（不支持 macOS）。"
+      <p class="lead" data-zh="sysinfo-cli 是一个 Bash 写的 Linux 服务器状态面板。SSH 登录后能先看一眼 CPU、内存、磁盘和网络；需要盯实时变化时，再运行 sysinfo。它不跑后台进程，适合个人 VPS、家用服务器和小团队机器。支持 Debian、Ubuntu、RHEL、Fedora、Alpine、Arch、openSUSE 等发行版，不支持 macOS。"
          data-en="sysinfo-cli is a Bash-based Linux server status panel. See CPU, memory, disk, and network info right when you SSH in — no extra monitoring software or background daemons. Supports Debian, Ubuntu, RHEL, Fedora, Alpine, Arch, openSUSE, and more (not macOS).">
-        sysinfo-cli 是一个用 Bash 写的 Linux 服务器状态面板。SSH 登录就能看到 CPU、内存、磁盘、网络等信息，不用额外装监控软件，也不跑后台进程。支持 Debian、Ubuntu、RHEL、Fedora、Alpine、Arch、openSUSE 等发行版（不支持 macOS）。
+        sysinfo-cli 是一个 Bash 写的 Linux 服务器状态面板。SSH 登录后能先看一眼 CPU、内存、磁盘和网络；需要盯实时变化时，再运行 sysinfo。它不跑后台进程，适合个人 VPS、家用服务器和小团队机器。支持 Debian、Ubuntu、RHEL、Fedora、Alpine、Arch、openSUSE 等发行版，不支持 macOS。
       </p>
       <div class="feature-grid">
         <div class="feat-card">
           <div class="feat-icon">🔐</div>
-          <h3 data-zh="登录即显示" data-en="Login Banner">登录即显示</h3>
-          <p data-zh="bash 和 zsh 登录后自动弹出状态面板" data-en="Auto-shows on bash and zsh login">bash 和 zsh 登录后自动弹出状态面板</p>
+          <h3 data-zh="登录状态栏" data-en="Login Banner">登录状态栏</h3>
+          <p data-zh="bash 和 zsh 登录后显示一次状态快照" data-en="Auto-shows on bash and zsh login">bash 和 zsh 登录后显示一次状态快照</p>
         </div>
         <div class="feat-card">
           <div class="feat-icon">📊</div>
           <h3 data-zh="实时监控" data-en="Live Monitor">实时监控</h3>
-          <p data-zh="运行 sysinfo 进入刷新式面板，不闪屏" data-en="Run sysinfo for a flicker-free live dashboard">运行 sysinfo 进入刷新式面板，不闪屏</p>
+          <p data-zh="运行 sysinfo 查看实时刷新面板" data-en="Run sysinfo for a flicker-free live dashboard">运行 sysinfo 查看实时刷新面板</p>
         </div>
         <div class="feat-card">
           <div class="feat-icon">📈</div>
           <h3 data-zh="流量统计" data-en="Traffic">流量统计</h3>
-          <p data-zh="按月统计流量，快到上限时自动限速" data-en="Monthly traffic accounting with auto throttling">按月统计流量，快到上限时自动限速</p>
+          <p data-zh="按月累计流量，达到阈值后可自动限速" data-en="Monthly traffic accounting with auto throttling">按月累计流量，达到阈值后可自动限速</p>
         </div>
         <div class="feat-card">
           <div class="feat-icon">🔔</div>
           <h3 data-zh="手机推送" data-en="Push Alerts">手机推送</h3>
-          <p data-zh="通过 Bark 把告警推送到手机" data-en="Bark push alerts to your phone">通过 Bark 把告警推送到手机</p>
+          <p data-zh="通过 Bark 接收 CPU、流量、磁盘等告警" data-en="Bark push alerts to your phone">通过 Bark 接收 CPU、流量、磁盘等告警</p>
         </div>
       </div>
       <div class="callout info">
         <strong data-zh="适合谁用？" data-en="Who is it for?">适合谁用？</strong>
-        <span data-zh="个人 VPS、家用服务器、小团队运维——任何 Linux 机器（Debian/Ubuntu/RHEL/Fedora/Alpine/Arch 等），想登录时快速看一眼状态的人。"
+        <span data-zh="适合个人 VPS、家用服务器和小团队运维。只要是 Linux 机器，又希望登录时先看一眼状态，就能用。"
               data-en="Personal VPS, home servers, small teams — any Linux box (Debian, Ubuntu, RHEL, Fedora, Alpine, Arch, etc.) where you want a quick status glance on login.">
-          个人 VPS、家用服务器、小团队运维——任何 Linux 机器（Debian/Ubuntu/RHEL/Fedora/Alpine/Arch 等），想登录时快速看一眼状态的人。
+          适合个人 VPS、家用服务器和小团队运维。只要是 Linux 机器，又希望登录时先看一眼状态，就能用。
         </span>
       </div>
     </article>
@@ -95,9 +95,9 @@
     <!-- 安装 -->
     <article id="install" class="page">
       <h1 data-zh="安装" data-en="Installation">安装</h1>
-      <p data-zh="三种方式任选，安装脚本会自动识别包管理器、装好依赖（yq、iproute）并配置登录横幅。"
+      <p data-zh="选一种安装方式即可。脚本会识别包管理器，安装 yq、iproute/iproute2，并配置 SSH 登录状态栏。"
          data-en="Pick any method. The installer detects your package manager, installs dependencies (yq, iproute), and sets up the login banner.">
-        三种方式任选，安装脚本会自动识别包管理器、装好依赖（yq、iproute）并配置登录横幅。
+        选一种安装方式即可。脚本会识别包管理器，安装 yq、iproute/iproute2，并配置 SSH 登录状态栏。
       </p>
 
       <h2 data-zh="系统要求" data-en="Requirements">系统要求</h2>
@@ -114,9 +114,9 @@
       </table>
       <div class="callout info">
         <strong data-zh="Alpine 提示" data-en="Alpine note">Alpine 提示</strong>
-        <span data-zh="默认 shell 是 ash，需先安装 bash：apk add bash。安装脚本会尝试用 apk 安装 iproute2。"
+        <span data-zh="Alpine 默认 shell 是 ash。先装 bash：apk add bash。安装脚本会用 apk 安装 iproute2。"
               data-en="Default shell is ash — install bash first: apk add bash. The installer uses apk for iproute2.">
-          默认 shell 是 ash，需先安装 bash：apk add bash。安装脚本会尝试用 apk 安装 iproute2。
+          Alpine 默认 shell 是 ash。先装 bash：apk add bash。安装脚本会用 apk 安装 iproute2。
         </span>
       </div>
 
@@ -142,9 +142,9 @@ sudo ./install.sh</code></pre>
       </table>
       <div class="callout tip">
         <strong data-zh="小提示" data-en="Tip">小提示</strong>
-        <span data-zh="重复执行 install.sh 不会覆盖你改过的 config.yaml。只有加 --overwrite-config 才会重置。"
+        <span data-zh="再次执行 install.sh 会保留现有 config.yaml。只有加 --overwrite-config 才会重置，并且会先备份旧文件。"
               data-en="Re-running install.sh keeps your config. Only --overwrite-config resets it.">
-          重复执行 install.sh 不会覆盖你改过的 config.yaml。只有加 --overwrite-config 才会重置。
+          再次执行 install.sh 会保留现有 config.yaml。只有加 --overwrite-config 才会重置，并且会先备份旧文件。
         </span>
       </div>
     </article>
@@ -154,13 +154,13 @@ sudo ./install.sh</code></pre>
       <h1 data-zh="升级与卸载" data-en="Upgrade & Uninstall">升级与卸载</h1>
       <h2 data-zh="升级" data-en="Upgrade">升级</h2>
       <pre class="code-block"><code>cd sysinfo-cli && git pull && sudo ./install.sh</code></pre>
-      <p data-zh="想同时把配置也恢复成最新模板：" data-en="To also reset config to the latest template:">想同时把配置也恢复成最新模板：</p>
+      <p data-zh="如果想顺便把配置恢复成模板：" data-en="To also reset config to the latest template:">如果想顺便把配置恢复成模板：</p>
       <pre class="code-block"><code>sudo ./install.sh --overwrite-config</code></pre>
       <h2 data-zh="卸载" data-en="Uninstall">卸载</h2>
       <pre class="code-block"><code>sudo ./uninstall.sh</code></pre>
-      <p data-zh="会删除所有脚本、配置文件、状态文件和 zsh 登录 hook。"
+      <p data-zh="会删除脚本、配置文件、状态文件和 zsh 登录 hook。"
          data-en="Removes all scripts, configs, state files, and the zsh login hook.">
-        会删除所有脚本、配置文件、状态文件和 zsh 登录 hook。
+        会删除脚本、配置文件、状态文件和 zsh 登录 hook。
       </p>
     </article>
 
@@ -176,15 +176,15 @@ sudo ./install.sh</code></pre>
           <tr><td><code>sysinfo -c 文件.yaml</code></td><td data-zh="从指定配置文件应用设置" data-en="Apply settings from a YAML file">从指定配置文件应用设置</td></tr>
           <tr><td><code>sysinfo --reset-traffic</code></td><td data-zh="清零本月流量统计" data-en="Reset monthly traffic counter">清零本月流量统计</td></tr>
           <tr><td><code>sysinfo --clear-nat</code></td><td data-zh="清除 NAT 端口映射" data-en="Clear NAT port mappings">清除 NAT 端口映射</td></tr>
-          <tr><td><code>sysinfo --notify-test</code></td><td data-zh="发一条测试推送，检查 Bark 是否配好" data-en="Send a test push to verify Bark">发一条测试推送，检查 Bark 是否配好</td></tr>
+          <tr><td><code>sysinfo --notify-test</code></td><td data-zh="发一条测试推送，确认 Bark 通道可用" data-en="Send a test push to verify Bark">发一条测试推送，确认 Bark 通道可用</td></tr>
           <tr><td><code>sysinfo --notify-check</code></td><td data-zh="检查告警规则（适合放 cron 定时跑）" data-en="Evaluate alert rules (for cron)">检查告警规则（适合放 cron 定时跑）</td></tr>
         </tbody>
       </table>
       <div class="callout warn">
         <strong data-zh="注意" data-en="Note">注意</strong>
-        <span data-zh="配置只能通过 YAML 文件修改（-c / -r），旧的 --nat、--traffic 等命令行参数已经不用了。"
+        <span data-zh="配置只从 YAML 文件读取，通过 -c 或 -r 应用。旧的 --nat、--traffic 等参数已经移除。"
               data-en="Config is YAML-only (-c / -r). Legacy --nat, --traffic flags are removed.">
-          配置只能通过 YAML 文件修改（-c / -r），旧的 --nat、--traffic 等命令行参数已经不用了。
+          配置只从 YAML 文件读取，通过 -c 或 -r 应用。旧的 --nat、--traffic 等参数已经移除。
         </span>
       </div>
     </article>
@@ -192,8 +192,8 @@ sudo ./install.sh</code></pre>
     <!-- 面板 -->
     <article id="dashboard" class="page">
       <h1 data-zh="面板说明" data-en="Dashboard">面板说明</h1>
-      <p data-zh="登录或运行 sysinfo 后，面板分四个区域展示信息："
-         data-en="The dashboard has four sections:">登录或运行 sysinfo 后，面板分四个区域展示信息：</p>
+      <p data-zh="登录后或运行 sysinfo 时，面板会显示四块信息："
+         data-en="The dashboard has four sections:">登录后或运行 sysinfo 时，面板会显示四块信息：</p>
 
       <div class="panel-demo">
         <pre class="term-preview"><span class="c-d">================================================================</span>
@@ -221,21 +221,21 @@ sudo ./install.sh</code></pre>
           <tr><td data-zh="核心信息" data-en="Core">核心信息</td><td data-zh="CPU 型号、IP 地址、NAT 映射、运行时间" data-en="CPU model, IPs, NAT mappings, uptime">CPU 型号、IP 地址、NAT 映射、运行时间</td></tr>
           <tr><td data-zh="资源使用" data-en="Resources">资源使用</td><td data-zh="CPU 负载、内存、交换分区、进程数、在线用户" data-en="CPU load, memory, swap, processes, users">CPU 负载、内存、交换分区、进程数、在线用户</td></tr>
           <tr><td data-zh="网络" data-en="Network">网络</td><td data-zh="实时网速、本月流量、配额使用率、限速状态" data-en="Live speed, monthly traffic, quota, throttle status">实时网速、本月流量、配额使用率、限速状态</td></tr>
-          <tr><td data-zh="磁盘" data-en="Disk">磁盘</td><td data-zh="各挂载点的总量、已用、占比和进度条" data-en="Mount points with size, used, percent, progress bar">各挂载点的总量、已用、占比和进度条</td></tr>
+          <tr><td data-zh="磁盘" data-en="Disk">磁盘</td><td data-zh="各挂载点的容量、已用、占比和进度条" data-en="Mount points with size, used, percent, progress bar">各挂载点的容量、已用、占比和进度条</td></tr>
         </tbody>
       </table>
-      <p data-zh="进度条：白色方块表示已用，黑色方块表示剩余。"
-         data-en="Progress bars: white blocks = used, black blocks = free.">
-        进度条：白色方块表示已用，黑色方块表示剩余。
+      <p data-zh="进度条：白色方块表示已用，灰色方块表示剩余。"
+         data-en="Progress bars: white blocks = used, gray blocks = free.">
+        进度条：白色方块表示已用，灰色方块表示剩余。
       </p>
     </article>
 
     <!-- 配置 -->
     <article id="config" class="page">
       <h1 data-zh="配置文件" data-en="Configuration">配置文件</h1>
-      <p data-zh="配置文件在 /etc/sysinfo/config.yaml，改完后执行 sudo sysinfo -r 生效。"
+      <p data-zh="配置文件是 /etc/sysinfo/config.yaml。改完后执行 sudo sysinfo -r。"
          data-en="Config lives at /etc/sysinfo/config.yaml. Run sudo sysinfo -r after editing.">
-        配置文件在 <code>/etc/sysinfo/config.yaml</code>，改完后执行 <code>sudo sysinfo -r</code> 生效。
+        配置文件是 <code>/etc/sysinfo/config.yaml</code>。改完后执行 <code>sudo sysinfo -r</code>。
       </p>
 
       <h2 data-zh="完整示例" data-en="Full Example">完整示例</h2>
@@ -282,9 +282,9 @@ notify:
 
       <div class="callout info">
         <strong data-zh="关于 NAT" data-en="About NAT">关于 NAT</strong>
-        <span data-zh="NAT 配置只在面板上展示端口映射关系，不会帮你改 iptables 或 nftables 规则。"
+        <span data-zh="NAT 配置只用于显示端口映射，不会修改 iptables 或 nftables。"
               data-en="NAT config is display-only — it won't configure iptables/nftables for you.">
-          NAT 配置只在面板上展示端口映射关系，不会帮你改 iptables 或 nftables 规则。
+          NAT 配置只用于显示端口映射，不会修改 iptables 或 nftables。
         </span>
       </div>
     </article>
@@ -296,14 +296,14 @@ notify:
       <h2 data-zh="流量怎么统计" data-en="How Traffic Works">流量怎么统计</h2>
       <ul class="plain-list">
         <li data-zh="从 /proc/net/dev 读取网卡收发字节数，按月累计" data-en="Reads /proc/net/dev and accumulates monthly">从 /proc/net/dev 读取网卡收发字节数，按月累计</li>
-        <li data-zh="数据存在 /etc/sysinfo-traffic.json，到 reset_day 那天自动清零" data-en="Stored in /etc/sysinfo-traffic.json, resets on reset_day">数据存在 /etc/sysinfo-traffic.json，到 reset_day 那天自动清零</li>
-        <li data-zh="mode 可以只统计上传、只统计下载，或者两个方向都算" data-en="mode can count upload, download, or both">mode 可以只统计上传、只统计下载，或者两个方向都算</li>
+        <li data-zh="数据写入 /etc/sysinfo-traffic.json，到 reset_day 自动重置" data-en="Stored in /etc/sysinfo-traffic.json, resets on reset_day">数据写入 /etc/sysinfo-traffic.json，到 reset_day 自动重置</li>
+        <li data-zh="mode 可设为 upload、download 或 both" data-en="mode can count upload, download, or both">mode 可设为 upload、download 或 both</li>
       </ul>
 
       <h2 data-zh="自动限速怎么工作" data-en="How Throttling Works">自动限速怎么工作</h2>
-      <p data-zh="当本月流量用到 threshold 设定的百分比后，sysinfo-cli 会用 Linux tc 命令把网速限制到 rate 指定的值。"
+      <p data-zh="当本月流量达到 threshold 后，sysinfo-cli 会调用 Linux tc，把网速限制到 rate。"
          data-en="When monthly usage hits the threshold %, sysinfo-cli uses Linux tc to cap speed to the configured rate.">
-        当本月流量用到 threshold 设定的百分比后，sysinfo-cli 会用 Linux tc 命令把网速限制到 rate 指定的值。
+        当本月流量达到 threshold 后，sysinfo-cli 会调用 Linux tc，把网速限制到 rate。
       </p>
       <div class="flow-diagram">
         <div class="flow-step" data-zh="流量达到 95%" data-en="Traffic hits 95%">流量达到 95%</div>
@@ -314,9 +314,9 @@ notify:
       </div>
       <div class="callout warn">
         <strong data-zh="网关模式" data-en="Gateway Mode">网关模式</strong>
-        <span data-zh="如果服务器开了 IP 转发（做路由/网关），默认不会限速，怕影响下游设备。确实需要的话，在配置里设 force_gateway_throttle: true。"
+        <span data-zh="如果服务器开启了 IP 转发（作为路由/网关），默认跳过限速，避免影响下游设备。确实要限速时，设置 force_gateway_throttle: true。"
               data-en="If ip_forward is enabled (router/gateway), throttling is skipped by default. Set force_gateway_throttle: true if needed.">
-          如果服务器开了 IP 转发（做路由/网关），默认不会限速，怕影响下游设备。确实需要的话，在配置里设 force_gateway_throttle: true。
+          如果服务器开启了 IP 转发（作为路由/网关），默认跳过限速，避免影响下游设备。确实要限速时，设置 force_gateway_throttle: true。
         </span>
       </div>
       <h2 data-zh="排查限速问题" data-en="Troubleshooting">排查限速问题</h2>
@@ -326,37 +326,37 @@ notify:
     <!-- 推送 -->
     <article id="notify" class="page">
       <h1 data-zh="推送通知" data-en="Push Notifications">推送通知</h1>
-      <p data-zh="通过 Bark 把告警推送到 iPhone。默认全部关闭，需要在 config.yaml 里手动开启。"
+      <p data-zh="告警通过 Bark 推到 iPhone。默认关闭，需要在 config.yaml 里手动开启。"
          data-en="Send alerts to iPhone via Bark. Disabled by default — enable in config.yaml.">
-        通过 Bark 把告警推送到 iPhone。默认全部关闭，需要在 config.yaml 里手动开启。
+        告警通过 Bark 推到 iPhone。默认关闭，需要在 config.yaml 里手动开启。
       </p>
 
       <h2 data-zh="怎么开启" data-en="How to Enable">怎么开启</h2>
       <ol class="steps">
         <li data-zh="在 iPhone 上安装 Bark App，拿到推送 Key" data-en="Install Bark on iPhone and get your push key">在 iPhone 上安装 Bark App，拿到推送 Key</li>
         <li data-zh="编辑 config.yaml，填上 bark.key，把 notify.enabled 改成 true" data-en="Edit config.yaml: set bark.key and notify.enabled: true">编辑 config.yaml，填上 bark.key，把 notify.enabled 改成 true</li>
-        <li data-zh="开启你需要的规则（比如 cpu.enabled: true）" data-en="Enable the rules you need (e.g. cpu.enabled: true)">开启你需要的规则（比如 cpu.enabled: true）</li>
+        <li data-zh="开启需要的规则，比如 cpu.enabled: true" data-en="Enable the rules you need (e.g. cpu.enabled: true)">开启需要的规则，比如 cpu.enabled: true</li>
         <li data-zh="执行 sudo sysinfo -r 应用配置" data-en="Run sudo sysinfo -r">执行 sudo sysinfo -r 应用配置</li>
-        <li data-zh="运行 sysinfo --notify-test 测试能不能收到" data-en="Run sysinfo --notify-test to verify">运行 sysinfo --notify-test 测试能不能收到</li>
+        <li data-zh="运行 sysinfo --notify-test，确认手机能收到" data-en="Run sysinfo --notify-test to verify">运行 sysinfo --notify-test，确认手机能收到</li>
       </ol>
 
-      <h2 data-zh="五种告警规则" data-en="Five Alert Rules">五种告警规则</h2>
+      <h2 data-zh="告警规则" data-en="Five Alert Rules">告警规则</h2>
       <table class="data-table">
         <thead><tr><th data-zh="规则" data-en="Rule">规则</th><th data-zh="什么时候推送" data-en="When it fires">什么时候推送</th></tr></thead>
         <tbody>
           <tr><td><code>cpu</code></td><td data-zh="CPU 使用率超过阈值" data-en="CPU usage exceeds threshold">CPU 使用率超过阈值</td></tr>
-          <tr><td><code>net</code></td><td data-zh="本月流量用到配额的百分之几" data-en="Monthly traffic hits quota %">本月流量用到配额的百分之几</td></tr>
-          <tr><td><code>nic</code></td><td data-zh="网速达到带宽的百分之几（可分别监控上传/下载）" data-en="Speed hits % of bandwidth (upload/download/both)">网速达到带宽的百分之几（可分别监控上传/下载）</td></tr>
-          <tr><td><code>throttle</code></td><td data-zh="自动限速被触发时" data-en="When auto-throttling activates">自动限速被触发时</td></tr>
+          <tr><td><code>net</code></td><td data-zh="本月流量达到配额阈值" data-en="Monthly traffic hits quota %">本月流量达到配额阈值</td></tr>
+          <tr><td><code>nic</code></td><td data-zh="网速达到带宽阈值，可分别监控上传/下载" data-en="Speed hits % of bandwidth (upload/download/both)">网速达到带宽阈值，可分别监控上传/下载</td></tr>
+          <tr><td><code>throttle</code></td><td data-zh="限速开始生效" data-en="When auto-throttling activates">限速开始生效</td></tr>
           <tr><td><code>disk</code></td><td data-zh="某个磁盘分区使用率超过阈值" data-en="Disk usage exceeds threshold">某个磁盘分区使用率超过阈值</td></tr>
         </tbody>
       </table>
 
       <div class="callout tip">
         <strong data-zh="不会刷屏" data-en="No spam">不会刷屏</strong>
-        <span data-zh="告警是「边沿触发」的——只在状态变化时推送，同一条规则有 cooldown 冷却时间（默认 30 分钟）。"
+        <span data-zh="告警只在状态变化时推送。同一条规则有 cooldown 冷却时间，默认 30 分钟。"
               data-en="Edge-triggered alerts with cooldown (default 30 min) — no spam.">
-          告警是「边沿触发」的——只在状态变化时推送，同一条规则有 cooldown 冷却时间（默认 30 分钟）。
+          告警只在状态变化时推送。同一条规则有 cooldown 冷却时间，默认 30 分钟。
         </span>
       </div>
 
@@ -376,18 +376,18 @@ notify:
         <li><code>zh</code> — <span data-zh="中文界面" data-en="Chinese UI">中文界面</span></li>
         <li><code>en</code> — <span data-zh="英文界面" data-en="English UI">英文界面</span></li>
       </ul>
-      <p data-zh="改完运行 sysinfo 立即生效；运行 sudo sysinfo -r 可以让 SSH 登录横幅也一起切换。"
+      <p data-zh="改完后运行 sysinfo 会立即使用新语言；执行 sudo sysinfo -r 后，SSH 登录状态栏也会切换。"
          data-en="Run sysinfo for immediate effect; sudo sysinfo -r also updates the SSH login banner.">
-        改完运行 sysinfo 立即生效；运行 sudo sysinfo -r 可以让 SSH 登录横幅也一起切换。
+        改完后运行 sysinfo 会立即使用新语言；执行 sudo sysinfo -r 后，SSH 登录状态栏也会切换。
       </p>
     </article>
 
     <!-- 横幅 -->
     <article id="banner" class="page">
       <h1 data-zh="SSH 登录横幅" data-en="SSH Login Banner">SSH 登录横幅</h1>
-      <p data-zh="安装后，每次 SSH 登录会自动显示系统状态面板，不用手动敲 sysinfo。"
+      <p data-zh="安装后，SSH 登录会自动显示一次状态面板，不用手动敲 sysinfo。"
          data-en="After install, every SSH login shows the status panel automatically.">
-        安装后，每次 SSH 登录会自动显示系统状态面板，不用手动敲 sysinfo。
+        安装后，SSH 登录会自动显示一次状态面板，不用手动敲 sysinfo。
       </p>
       <ul class="plain-list">
         <li data-zh="bash 用户：通过 /etc/profile.d/ 加载" data-en="bash: loaded via /etc/profile.d/">bash 用户：通过 /etc/profile.d/ 加载</li>
@@ -418,44 +418,44 @@ notify:
       <div class="faq-list">
         <details class="faq-item">
           <summary data-zh="支持哪些操作系统？" data-en="Which operating systems are supported?">支持哪些操作系统？</summary>
-          <p data-zh="仅支持 Linux（需 bash）。常见发行版：Debian、Ubuntu、RHEL、CentOS、Rocky、Alma、Fedora、Alpine、Arch、openSUSE、Gentoo。安装脚本自动识别 apt/dnf/yum/apk/pacman/zypper/emerge。macOS 不支持（依赖 Linux tc、IFB 等）。"
+          <p data-zh="仅支持 Linux，并需要 bash。常见发行版包括 Debian、Ubuntu、RHEL、CentOS、Rocky、Alma、Fedora、Alpine、Arch、openSUSE、Gentoo。安装脚本会识别 apt、dnf、yum、apk、pacman、zypper、emerge。macOS 不支持，因为限速依赖 Linux tc、IFB 等能力。"
              data-en="Linux only (bash required). Common distros: Debian, Ubuntu, RHEL, CentOS, Rocky, Alma, Fedora, Alpine, Arch, openSUSE, Gentoo. install.sh auto-detects apt/dnf/yum/apk/pacman/zypper/emerge. macOS is not supported (Linux tc, IFB, etc.).">
-            仅支持 Linux（需 bash）。常见发行版：Debian、Ubuntu、RHEL、CentOS、Rocky、Alma、Fedora、Alpine、Arch、openSUSE、Gentoo。安装脚本自动识别 apt/dnf/yum/apk/pacman/zypper/emerge。macOS 不支持（依赖 Linux tc、IFB 等）。
+            仅支持 Linux，并需要 bash。常见发行版包括 Debian、Ubuntu、RHEL、CentOS、Rocky、Alma、Fedora、Alpine、Arch、openSUSE、Gentoo。安装脚本会识别 apt、dnf、yum、apk、pacman、zypper、emerge。macOS 不支持，因为限速依赖 Linux tc、IFB 等能力。
           </p>
         </details>
         <details class="faq-item">
           <summary data-zh="yq 报 Exec format error？" data-en="yq: Exec format error?">yq 报 Exec format error？</summary>
-          <p data-zh="通常是 ARM 服务器上装了 amd64 的 yq。删除后重装：sudo rm -f /usr/local/bin/yq，再执行 install.sh（会按 uname -m 下载 yq_linux_arm64 等）。验证：yq --version 和 yq eval '.display.language' /etc/sysinfo/config.yaml。"
+          <p data-zh="通常是 ARM 服务器装到了 amd64 的 yq。先删除再重装：sudo rm -f /usr/local/bin/yq，然后重新执行 install.sh。脚本会按 uname -m 下载对应的 yq。可用 yq --version 和 yq eval '.display.language' /etc/sysinfo/config.yaml 验证。"
              data-en="Usually an amd64 yq binary on an ARM host. Remove and reinstall: sudo rm -f /usr/local/bin/yq, then re-run install.sh (picks yq_linux_arm64 etc. from uname -m). Verify with yq --version and yq eval '.display.language' /etc/sysinfo/config.yaml.">
-            通常是 ARM 服务器上装了 amd64 的 yq。删除后重装：sudo rm -f /usr/local/bin/yq，再执行 install.sh（会按 uname -m 下载 yq_linux_arm64 等）。验证：yq --version 和 yq eval '.display.language' /etc/sysinfo/config.yaml。
+            通常是 ARM 服务器装到了 amd64 的 yq。先删除再重装：sudo rm -f /usr/local/bin/yq，然后重新执行 install.sh。脚本会按 uname -m 下载对应的 yq。可用 yq --version 和 yq eval '.display.language' /etc/sysinfo/config.yaml 验证。
           </p>
         </details>
         <details class="faq-item">
           <summary data-zh="SSH 登录没看到面板？" data-en="No banner on SSH login?">SSH 登录没看到面板？</summary>
-          <p data-zh="确认是正常登录（不是 scp 传文件）。zsh 用户如果还是没有，重新执行一次 sudo ./install.sh 修复 hook。"
+          <p data-zh="先确认这是正常 SSH 登录，不是 scp/sftp 传文件。zsh 用户如果仍然看不到，重新执行 sudo ./install.sh 修复 hook。"
              data-en="Make sure it's a normal login (not scp). zsh users: re-run sudo ./install.sh to fix the hook.">
-            确认是正常登录（不是 scp 传文件）。zsh 用户如果还是没有，重新执行一次 sudo ./install.sh 修复 hook。
+            先确认这是正常 SSH 登录，不是 scp/sftp 传文件。zsh 用户如果仍然看不到，重新执行 sudo ./install.sh 修复 hook。
           </p>
         </details>
         <details class="faq-item">
           <summary data-zh="改了配置但没效果？" data-en="Config changes not applied?">改了配置但没效果？</summary>
-          <p data-zh="普通用户会优先读 ~/.config/sysinfo/config.yaml，如果存在就会覆盖系统配置。删掉它，或者指定 SYSINFO_CONFIG=/etc/sysinfo/config.yaml sysinfo。"
+          <p data-zh="普通用户运行时会优先读取 ~/.config/sysinfo/config.yaml。这个文件如果存在，会覆盖系统配置。删掉它，或用 SYSINFO_CONFIG=/etc/sysinfo/config.yaml sysinfo 指定配置。"
              data-en="Non-root users read ~/.config/sysinfo/config.yaml first if it exists. Delete it or use SYSINFO_CONFIG=/etc/sysinfo/config.yaml sysinfo.">
-            普通用户会优先读 ~/.config/sysinfo/config.yaml，如果存在就会覆盖系统配置。删掉它，或者指定 SYSINFO_CONFIG=/etc/sysinfo/config.yaml sysinfo。
+            普通用户运行时会优先读取 ~/.config/sysinfo/config.yaml。这个文件如果存在，会覆盖系统配置。删掉它，或用 SYSINFO_CONFIG=/etc/sysinfo/config.yaml sysinfo 指定配置。
           </p>
         </details>
         <details class="faq-item">
           <summary data-zh="推送收不到？" data-en="No push notifications?">推送收不到？</summary>
-          <p data-zh="先跑 sysinfo --notify-test 看通道通不通。确认 notify.enabled 是 true、bark.key 填对了。测试时可以把 threshold 临时改成 0。"
+          <p data-zh="先跑 sysinfo --notify-test 看 Bark 通道是否正常。再检查 notify.enabled 是否为 true、bark.key 是否正确。测试规则时，可以临时把 threshold 改成 0。"
              data-en="Run sysinfo --notify-test first. Check notify.enabled and bark.key. Temporarily set threshold to 0 for testing.">
-            先跑 sysinfo --notify-test 看通道通不通。确认 notify.enabled 是 true、bark.key 填对了。测试时可以把 threshold 临时改成 0。
+            先跑 sysinfo --notify-test 看 Bark 通道是否正常。再检查 notify.enabled 是否为 true、bark.key 是否正确。测试规则时，可以临时把 threshold 改成 0。
           </p>
         </details>
         <details class="faq-item">
           <summary data-zh="限速没生效？" data-en="Throttling not working?">限速没生效？</summary>
-          <p data-zh="网关模式（开了 IP 转发）默认不限速。需要 tc 命令和 root 权限。跑 bash scripts/test_throttle.sh 看诊断结果。"
+          <p data-zh="开启 IP 转发的网关机器默认跳过限速。限速还需要 tc 命令和 root 权限。运行 bash scripts/test_throttle.sh 看诊断结果。"
              data-en="Gateway mode (ip_forward) skips throttling by default. Needs tc and root. Run bash scripts/test_throttle.sh.">
-            网关模式（开了 IP 转发）默认不限速。需要 tc 命令和 root 权限。跑 bash scripts/test_throttle.sh 看诊断结果。
+            开启 IP 转发的网关机器默认跳过限速。限速还需要 tc 命令和 root 权限。运行 bash scripts/test_throttle.sh 看诊断结果。
           </p>
         </details>
       </div>

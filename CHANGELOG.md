@@ -54,6 +54,9 @@
 
 ### Fixed · 修复
 
+- CPU 核心数显示改为优先读取 `/proc/cpuinfo`，并通过 `/sys/devices/system/cpu/online`、`lscpu`、`getconf`、`nproc` 兜底，避免缺少 `nproc` 或受可用 CPU 限制时显示错误。
+  CPU core display now prefers `/proc/cpuinfo`, with `/sys/devices/system/cpu/online`, `lscpu`, `getconf`, and `nproc` fallbacks, avoiding incorrect counts when `nproc` is missing or constrained.
+
 - ARM 主机安装错误架构的 yq 后，`language: zh` 等配置不生效。
   Wrong-arch yq on ARM caused `language: zh` and other YAML settings to be ignored.
 

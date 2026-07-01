@@ -26,6 +26,10 @@ elif command -v opkg >/dev/null 2>&1; then
 elif command -v apk >/dev/null 2>&1; then
     apk add --no-cache bash sudo curl ca-certificates procps
 elif command -v pacman >/dev/null 2>&1; then
+    sed -i \
+        -e 's/^DownloadUser = .*/DownloadUser = root/' \
+        -e 's/^#DisableSandboxSyscalls/DisableSandboxSyscalls/' \
+        /etc/pacman.conf
     pacman -Sy --noconfirm --needed bash sudo curl ca-certificates procps-ng
 elif command -v zypper >/dev/null 2>&1; then
     zypper -n ref

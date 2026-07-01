@@ -45,6 +45,46 @@ read_net_counters() {
     done < <(awk 'NR>2 && $1 != "lo:" {print $1, $2, $10}' /proc/net/dev 2>/dev/null)
 }
 
+get_cpu_core_count() {
+    local cores=""
+    local cpuinfo_file="${SYSINFO_CPUINFO_FILE:-/proc/cpuinfo}"
+
+    if [ -f "$cpuinfo_file" ]; then
+        cores=$(awk -F: '/^[[:space:]]*processor[[:space:]]*:/{count++} END{if(count>0) print count}' "$cpuinfo_file" 2>/dev/null)
+    fi
+
+    if ! [[ "$cores" =~ ^[0-9]+$ ]] || [ "$cores" -le 0 ]; then
+        cores=$(awk -F, '
+            {
+                for (i = 1; i <= NF; i++) {
+                    split($i, r, "-")
+                    if (r[1] ~ /^[0-9]+$/ && r[2] ~ /^[0-9]+$/ && r[2] >= r[1]) {
+                        total += r[2] - r[1] + 1
+                    } else if ($i ~ /^[0-9]+$/) {
+                        total++
+                    }
+                }
+            }
+            END{if(total>0) print total}
+        ' /sys/devices/system/cpu/online 2>/dev/null)
+    fi
+
+    if ! [[ "$cores" =~ ^[0-9]+$ ]] || [ "$cores" -le 0 ]; then
+        cores=$(lscpu 2>/dev/null | awk -F: '/^CPU\(s\)/ && $1 !~ /NUMA/ {gsub(/[ \t]/, "", $2); print $2; exit}')
+    fi
+
+    if ! [[ "$cores" =~ ^[0-9]+$ ]] || [ "$cores" -le 0 ]; then
+        cores=$(getconf _NPROCESSORS_ONLN 2>/dev/null)
+    fi
+
+    if ! [[ "$cores" =~ ^[0-9]+$ ]] || [ "$cores" -le 0 ]; then
+        cores=$(nproc --all 2>/dev/null || nproc 2>/dev/null || echo "1")
+    fi
+
+    [[ "$cores" =~ ^[0-9]+$ ]] && [ "$cores" -gt 0 ] || cores="1"
+    echo "$cores"
+}
+
 # Flat state file (/etc/sysinfo-traffic) is a single-line JSON-ish string parsed
 # via grep field extraction. cfg_get <key> echoes the raw value (unquoted) or
 # empty. cfg_get_num <key> echoes only the numeric portion.
@@ -292,12 +332,12 @@ draw_bar() {
     local empty=$((width - filled))
     local i
 
-    # Solid blocks: white (used) + black (free).
+    # Solid blocks: white (used) + gray (free).
     for ((i=0; i<filled; i++)); do
         printf '\033[97m█\033[0m'
     done
     for ((i=0; i<empty; i++)); do
-        printf '\033[30m█\033[0m'
+        printf '\033[90m█\033[0m'
     done
 }
 
@@ -1297,11 +1337,7 @@ LOAD_AVG=$(cat /proc/loadavg 2>/dev/null | tr -d '\r' | awk '{print $1}' || echo
 if ! [[ "$LOAD_AVG" =~ ^[0-9]+\.?[0-9]*$ ]]; then
     LOAD_AVG="0"
 fi
-CPU_CORES=$(nproc 2>/dev/null | tr -d '\r' || echo "1")
-# Validate CPU_CORES is numeric
-if ! [[ "$CPU_CORES" =~ ^[0-9]+$ ]]; then
-    CPU_CORES="1"
-fi
+CPU_CORES=$(get_cpu_core_count | tr -d '\r')
 # Calculate CPU usage - use bc if available, otherwise use awk
 if command -v bc >/dev/null 2>&1; then
     CPU_USAGE_NUM=$(echo "scale=1; $LOAD_AVG * 100 / $CPU_CORES" | bc -l | tr -d '\r' || echo "0")
@@ -1444,6 +1480,13 @@ fi
 if [ -z "$CPU_MODEL" ] || [ "$CPU_MODEL" = "N/A" ]; then
     CPU_MODEL="N/A"
 fi
+if [ "$SYSINFO_LANG" = "zh" ]; then
+    CPU_CORE_TEXT="${CPU_CORES} 核"
+elif [ "$CPU_CORES" = "1" ]; then
+    CPU_CORE_TEXT="1 core"
+else
+    CPU_CORE_TEXT="${CPU_CORES} cores"
+fi
 
 # Load NAT config if exists
 NAT_RANGE=""
@@ -1467,7 +1510,7 @@ LBL_W=$(calc_label_width \
     "$L_THROTTLE_ENABLE" "$L_THROTTLE_STATUS" "$L_THROTTLE_RULE")
 
 printf "${GREEN}%-s${NONE}\n" "$L_CORE"
-dash_kv "$L_CPU" "$CPU_MODEL ($CPU_CORES core(s))" "$LBL_W"
+dash_kv "$L_CPU" "$CPU_MODEL ($CPU_CORE_TEXT)" "$LBL_W"
 dash_kv "$L_IPV4" "$IP_V4" "$LBL_W"
 dash_kv "$L_IPV6" "$IP_V6" "$LBL_W"
 if [ "$(tolower "$SYSINFO_SHOW_NAT")" = "true" ]; then

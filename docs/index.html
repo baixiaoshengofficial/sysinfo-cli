@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>sysinfo-cli · 轻量级 SSH 系统状态仪表盘</title>
-<meta name="description" content="sysinfo-cli: A lightweight Bash system status dashboard for Linux — SSH login banner or sysinfo live monitor, traffic accounting, tc throttling, NAT and Bark push notifications." />
+<title>sysinfo-cli · SSH 登录即见状态</title>
+<meta name="description"
+      content="sysinfo-cli: a lightweight Bash dashboard for Linux. Status on SSH login, live sysinfo monitor, traffic accounting, tc throttling, NAT display, and Bark push notifications." />
 <style>
   :root {
     --bg: #0d1117;
@@ -22,6 +23,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
   body { background: var(--bg); color: var(--fg); font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  img { max-width: 100%; }
   a { color: var(--accent2); text-decoration: none; }
   a:hover { text-decoration: underline; }
   code, pre { font-family: var(--mono); }
@@ -41,7 +43,7 @@
   @media (max-width: 720px) { .nav-links a:not(.gh) { display: none; } }
 
   /* Hero */
-  header { padding: 70px 0 50px; text-align: center; background:
+  header { padding: clamp(36px, 7vh, 64px) 0 40px; text-align: center; background:
       radial-gradient(900px 380px at 50% -120px, rgba(63,185,80,.16), transparent 70%),
       radial-gradient(700px 320px at 80% 0, rgba(88,166,255,.12), transparent 70%); }
   .badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 22px; }
@@ -55,6 +57,9 @@
   .btn-primary:hover { background: #4cc85e; text-decoration: none; }
   .btn-ghost { border-color: var(--border); color: var(--fg); background: var(--bg-soft); }
   .btn-ghost:hover { border-color: var(--accent2); text-decoration: none; }
+  .btn-author { border-color: var(--accent3); color: var(--fg); background: transparent; }
+  .btn-author:hover { border-color: var(--fg); color: var(--fg); text-decoration: none; }
+  .btn-author::before { content: "\2197 "; opacity: .7; }
 
   /* Hero showcase: terminal + iPhone side by side */
   .hero-showcase {
@@ -88,9 +93,13 @@
   .term-bar i:nth-child(1){background:#ff5f56}.term-bar i:nth-child(2){background:#ffbd2e}.term-bar i:nth-child(3){background:#27c93f}
   .term-bar span { margin-left: 10px; color: var(--fg-dim); font-size: .78rem; font-family: var(--mono); }
   .term-body {
-    padding: 16px 20px; margin: 0; font-family: var(--mono); font-size: .78rem;
-    line-height: 1.55; white-space: pre; overflow-x: auto; tab-size: 4;
+    padding: 14px 18px; margin: 0; font-family: var(--mono); font-size: .74rem;
+    line-height: 1.45; white-space: pre; overflow-x: auto; tab-size: 4;
     color: var(--fg-dim); background: #0a0e14; border: none;
+  }
+  @media (max-height: 820px) {
+    .term-body { font-size: .7rem; line-height: 1.35; padding: 10px 14px; }
+    .phone-preview-media { max-height: 60vh; }
   }
   .term-body .c-g { color: var(--accent); } .term-body .c-b { color: var(--accent2); }
   .term-body .c-d { color: var(--fg-dim); } .term-body .c-y { color: var(--accent3); }
@@ -184,25 +193,20 @@
 
 <header>
   <div class="wrap">
-    <div class="badges">
-      <span class="badge">Bash</span>
-      <span class="badge" data-en="Linux" data-zh="Linux">Linux</span>
-      <span class="badge" data-en="Multi-distro" data-zh="多发行版">Multi-distro</span>
-      <span class="badge" data-en="Minimal deps" data-zh="极简依赖">Minimal deps</span>
-      <span class="badge">YAML config</span>
-    </div>
     <h1 class="title">
-      <span data-en="Your system dashboard — on SSH" data-zh="系统状态——SSH">Your system dashboard — on SSH</span>
-      <span class="grad" data-en="login or sysinfo" data-zh="登录即显，sysinfo 即看">login or sysinfo</span>
+      <span data-en="Your dashboard on SSH login" data-zh="SSH 登录时看服务器状态">Your dashboard on SSH login</span><br />
+      <span class="grad" data-en="and your phone" data-zh="异常时推到手机">and your phone</span>
     </h1>
     <p class="tagline"
-       data-en="sysinfo-cli is a lightweight Bash dashboard for Linux — Debian, Ubuntu, RHEL, Fedora, Alpine, Arch, openSUSE and more. Auto-shows on SSH login; run sysinfo anytime for a live refreshing monitor. Monthly traffic accounting, tc throttling, NAT display and Bark push alerts. (macOS not supported.)"
-       data-zh="sysinfo-cli 是面向 Linux 的轻量 Bash 工具——支持 Debian、Ubuntu、RHEL、Fedora、Alpine、Arch、openSUSE 等发行版。SSH 登录自动弹出状态面板，也可随时运行 sysinfo 查看实时刷新仪表盘；还支持按月统计流量、超配额自动限速、NAT 展示和手机 Bark 推送。（不支持 macOS）">
-      sysinfo-cli is a lightweight Bash dashboard for Linux — Debian, Ubuntu, RHEL, Fedora, Alpine, Arch, openSUSE and more. Auto-shows on SSH login; run sysinfo anytime for a live refreshing monitor. Monthly traffic accounting, tc throttling, NAT display and Bark push alerts. (macOS not supported.)
+       data-en="Plain Bash, multi-distro Linux. Status on login, live sysinfo monitor, traffic + tc throttling + NAT, and Bark push alerts."
+       data-zh="用 Bash 写给 Linux VPS 的状态面板。SSH 登录先看一眼，运行 sysinfo 看实时刷新；流量统计、超限限速、NAT 展示和 Bark 推送都在里面。">
+      Plain Bash, multi-distro Linux. Status on login, live sysinfo monitor, traffic + tc throttling + NAT, and Bark push alerts.
     </p>
     <div class="cta">
-      <a class="btn btn-primary" href="#install" data-en="Get Started" data-zh="马上开始">Get Started</a>
-      <a class="btn btn-ghost" href="https://github.com/baixiaoshengofficial/sysinfo-cli" target="_blank" rel="noopener" data-en="View on GitHub" data-zh="GitHub 仓库">View on GitHub</a>
+      <a class="btn btn-primary" href="#install" data-en="Get Started" data-zh="开始安装">Get Started</a>
+      <a class="btn btn-ghost" href="https://github.com/baixiaoshengofficial/sysinfo-cli" target="_blank" rel="noopener" data-en="GitHub" data-zh="GitHub">GitHub</a>
+      <a class="btn btn-author" href="https://www.baixiaosheng.de" target="_blank" rel="noopener"
+         data-en="More by the author" data-zh="作者主页">More by the author</a>
     </div>
 
     <div class="hero-showcase">
@@ -263,24 +267,32 @@ Disk
         </div>
       </div>
     </div>
+
+    <div class="badges" style="margin-top:24px">
+      <span class="badge">Bash</span>
+      <span class="badge" data-en="Linux" data-zh="Linux">Linux</span>
+      <span class="badge" data-en="Multi-distro" data-zh="多发行版">Multi-distro</span>
+      <span class="badge" data-en="YAML config" data-zh="YAML 配置">YAML config</span>
+      <span class="badge" data-en="Bark push" data-zh="Bark 推送">Bark push</span>
+    </div>
   </div>
 </header>
 
 <section id="features">
   <div class="wrap">
-    <div class="sec-tag" data-en="Features" data-zh="功能特性">Features</div>
-    <h2 class="sec-title" data-en="Login banner or live sysinfo" data-zh="登录即显，命令即看">Login banner or live sysinfo</h2>
-    <p class="sec-sub" data-en="SSH login shows a one-shot snapshot; run sysinfo for a live refreshing dashboard. Plain Bash + standard tools — no agents, no daemons." data-zh="SSH 登录自动弹出快照面板；随时运行 sysinfo 进入实时刷新模式。只用 Bash 和系统工具，不用装后台服务。">SSH login shows a snapshot; run sysinfo for live refresh. Plain Bash, no daemons.</p>
+    <div class="sec-tag" data-en="Features" data-zh="功能">Features</div>
+    <h2 class="sec-title" data-en="Login banner or live sysinfo" data-zh="登录看快照，命令看实时">Login banner or live sysinfo</h2>
+    <p class="sec-sub" data-en="SSH login shows a one-shot snapshot; run sysinfo for a live refreshing dashboard. Plain Bash + standard tools — no agents, no daemons." data-zh="SSH 登录时显示一次状态快照；需要盯一会儿，就运行 sysinfo。只用 Bash 和常见系统工具，不跑后台服务。">SSH login shows a snapshot; run sysinfo for live refresh. Plain Bash, no daemons.</p>
     <div class="grid">
-      <div class="card"><div class="ico">🔐</div><h3 data-en="SSH Login Banner" data-zh="登录自动显示">SSH Login Banner</h3><p data-en="One-shot status panel on SSH login (bash /etc/profile.d, zsh /etc/zsh/zprofile). No command needed." data-zh="SSH 登录后自动弹出状态快照，bash 和 zsh 均支持，无需敲命令。">One-shot panel on SSH login — bash and zsh, no command needed.</p></div>
-      <div class="card"><div class="ico">📊</div><h3 data-en="Live Monitor" data-zh="实时监控">Live Monitor</h3><p data-en="Run sysinfo anytime for an in-place refreshing dashboard (sysinfo 2 for 2s interval). No screen flicker." data-zh="随时运行 sysinfo 打开实时刷新面板（sysinfo 2 为 2 秒刷新），不会闪屏。">Run sysinfo anytime — in-place refresh, no flicker.</p></div>
-      <div class="card"><div class="ico">🌐</div><h3 data-en="Network Speed" data-zh="网速监控">Network Speed</h3><p data-en="Real-time up/down speed with auto KB/s ↔ MB/s conversion." data-zh="实时显示上传/下载速度，自动换算单位。">Real-time up/down speed.</p></div>
-      <div class="card"><div class="ico">📈</div><h3 data-en="Traffic & Throttling" data-zh="流量统计与限速">Traffic &amp; Throttling</h3><p data-en="Monthly traffic accounting; automatic tc rate-limiting above a threshold." data-zh="按月统计流量，快到上限时自动限速。">Monthly accounting + auto tc limiting.</p></div>
-      <div class="card"><div class="ico">🔀</div><h3 data-en="NAT Mappings" data-zh="NAT 端口映射">NAT Mappings</h3><p data-en="Display and configure NAT port mappings right on the dashboard." data-zh="在面板上展示端口映射，一目了然。">Display & configure NAT mappings.</p></div>
-      <div class="card"><div class="ico">🔔</div><h3 data-en="Push Notifications" data-zh="手机推送">Push Notifications</h3><p data-en="Modular Bark alerts for CPU, traffic quota, NIC speed, throttle and disk." data-zh="通过 Bark 把 CPU、流量、网速、限速、磁盘告警推到手机。">Modular Bark alerts for 5 rule types.</p></div>
-      <div class="card"><div class="ico">🌏</div><h3 data-en="Multi-language" data-zh="中英文切换">Multi-language</h3><p data-en="Chinese / English UI, switchable via config (auto / zh / en)." data-zh="中文/英文界面，配置文件里一键切换。">Chinese / English UI, config switchable.</p></div>
-      <div class="card"><div class="ico">⚙️</div><h3 data-en="YAML Config" data-zh="YAML 配置">YAML Config</h3><p data-en="One readable config file at /etc/sysinfo/config.yaml, applied with -c / -r." data-zh="一个 YAML 文件管全部，改完 sysinfo -r 就生效。">One readable config, applied with -c / -r.</p></div>
-      <div class="card"><div class="ico">🪶</div><h3 data-en="Lightweight" data-zh="足够轻量">Lightweight</h3><p data-en="Just yq + iproute (iproute2 on Debian/Alpine/Arch). Installer auto-detects apt, dnf, yum, apk, pacman, zypper." data-zh="只需 yq 和 iproute（Debian 等为 iproute2），安装脚本自动识别 apt/dnf/apk/pacman 等包管理器。">Just yq + iproute. Installer auto-detects your package manager.</p></div>
+      <div class="card"><div class="ico">🔐</div><h3 data-en="SSH Login Banner" data-zh="登录状态栏">SSH Login Banner</h3><p data-en="One-shot status panel on SSH login (bash /etc/profile.d, zsh /etc/zsh/zprofile). No command needed." data-zh="SSH 登录后显示一次状态快照，支持 bash 和 zsh。平时登录不用再手敲命令。">One-shot panel on SSH login — bash and zsh, no command needed.</p></div>
+      <div class="card"><div class="ico">📊</div><h3 data-en="Live Monitor" data-zh="实时面板">Live Monitor</h3><p data-en="Run sysinfo anytime for an in-place refreshing dashboard (sysinfo 2 for 2s interval). No screen flicker." data-zh="运行 sysinfo 打开刷新面板；sysinfo 2 表示每 2 秒刷新一次。">Run sysinfo anytime — in-place refresh, no flicker.</p></div>
+      <div class="card"><div class="ico">🌐</div><h3 data-en="Network Speed" data-zh="实时网速">Network Speed</h3><p data-en="Real-time up/down speed with auto KB/s ↔ MB/s conversion." data-zh="显示上传、下载速度，并按 KB/s、MB/s 自动换算。">Real-time up/down speed.</p></div>
+      <div class="card"><div class="ico">📈</div><h3 data-en="Traffic & Throttling" data-zh="流量和限速">Traffic &amp; Throttling</h3><p data-en="Monthly traffic accounting; automatic tc rate-limiting above a threshold." data-zh="按月累计流量；达到阈值后可用 tc 自动限速。">Monthly accounting + auto tc limiting.</p></div>
+      <div class="card"><div class="ico">🔀</div><h3 data-en="NAT Mappings" data-zh="NAT 显示">NAT Mappings</h3><p data-en="Display and configure NAT port mappings right on the dashboard." data-zh="把端口映射显示在面板里。它只负责展示，不改防火墙规则。">Display & configure NAT mappings.</p></div>
+      <div class="card"><div class="ico">🔔</div><h3 data-en="Push Notifications" data-zh="Bark 推送">Push Notifications</h3><p data-en="Modular Bark alerts for CPU, traffic quota, NIC speed, throttle and disk." data-zh="CPU、流量、网速、限速、磁盘触发规则后，用 Bark 推到手机。">Modular Bark alerts for 5 rule types.</p></div>
+      <div class="card"><div class="ico">🌏</div><h3 data-en="Multi-language" data-zh="中英文界面">Multi-language</h3><p data-en="Chinese / English UI, switchable via config (auto / zh / en)." data-zh="配置里写 auto、zh 或 en，即可切换界面语言。">Chinese / English UI, config switchable.</p></div>
+      <div class="card"><div class="ico">⚙️</div><h3 data-en="YAML Config" data-zh="YAML 配置">YAML Config</h3><p data-en="One readable config file at /etc/sysinfo/config.yaml, applied with -c / -r." data-zh="主要配置都在 /etc/sysinfo/config.yaml，改完用 sysinfo -r 应用。">One readable config, applied with -c / -r.</p></div>
+      <div class="card"><div class="ico">🪶</div><h3 data-en="Lightweight" data-zh="依赖少">Lightweight</h3><p data-en="Just yq + iproute (iproute2 on Debian/Alpine/Arch). Installer auto-detects apt, dnf, yum, apk, pacman, zypper." data-zh="核心依赖是 yq 和 iproute/iproute2；安装脚本会按发行版选择包管理器。">Just yq + iproute. Installer auto-detects your package manager.</p></div>
     </div>
   </div>
 </section>
@@ -288,8 +300,8 @@ Disk
 <section id="install">
   <div class="wrap">
     <div class="sec-tag" data-en="Install" data-zh="安装">Install</div>
-    <h2 class="sec-title" data-en="Up and running in seconds" data-zh="几条命令就装好">Up and running in seconds</h2>
-    <p class="sec-sub" data-en="Pick any method. The installer pulls dependencies and sets up the login banner." data-zh="任选一种方式，脚本会自动装依赖并配置登录横幅。">Pick any method. The installer pulls dependencies and sets up the login banner.</p>
+    <h2 class="sec-title" data-en="Up and running in seconds" data-zh="选一种方式安装">Up and running in seconds</h2>
+    <p class="sec-sub" data-en="Pick any method. The installer pulls dependencies and sets up the login banner." data-zh="安装脚本会检查依赖、复制脚本，并把 SSH 登录状态栏配置好。">Pick any method. The installer pulls dependencies and sets up the login banner.</p>
     <div class="install-grid">
       <pre class="code"><button class="copy">copy</button><span class="cmt"># <span data-en="1) One-liner (baixiaosheng.de)" data-zh="1) 一键安装（baixiaosheng.de）">1) One-liner (baixiaosheng.de)</span></span>
 bash <(curl -sSL baixiaosheng.de/sysinfo)</pre>
@@ -299,23 +311,23 @@ curl -sSL https://raw.githubusercontent.com/baixiaoshengofficial/sysinfo-cli/mai
 git clone https://github.com/baixiaoshengofficial/sysinfo-cli.git
 cd sysinfo-cli &amp;&amp; ./install.sh            <span class="cmt"># --lang zh|en, --overwrite-config</span></pre>
     </div>
-    <div class="note" data-en="Re-running ./install.sh keeps your existing /etc/sysinfo/config.yaml. Pass --overwrite-config to reset it to the template (old one is backed up)." data-zh="重复安装不会覆盖你改过的 config.yaml。想恢复默认模板就加 --overwrite-config（旧配置会自动备份）。">Re-running ./install.sh keeps your existing config. Pass --overwrite-config to reset it (old one is backed up).</div>
-    <div class="note" style="margin-top:10px" data-en="Supported: Linux with bash — Debian, Ubuntu, RHEL, CentOS, Rocky, Alma, Fedora, Alpine, Arch, openSUSE, Gentoo (emerge). macOS is not supported. yq is downloaded for your CPU arch (amd64/arm64/arm)." data-zh="支持：带 bash 的 Linux——Debian、Ubuntu、RHEL、CentOS、Rocky、Alma、Fedora、Alpine、Arch、openSUSE、Gentoo 等。不支持 macOS。yq 会按 CPU 架构（amd64/arm64/arm）自动下载。">Supported: Linux with bash — Debian, Ubuntu, RHEL, Fedora, Alpine, Arch, openSUSE and more. macOS not supported.</div>
+    <div class="note" data-en="Re-running ./install.sh keeps your existing /etc/sysinfo/config.yaml. Pass --overwrite-config to reset it to the template (old one is backed up)." data-zh="再次运行 ./install.sh 会保留现有配置。需要恢复默认模板时，加 --overwrite-config；旧配置会先备份。">Re-running ./install.sh keeps your existing config. Pass --overwrite-config to reset it (old one is backed up).</div>
+    <div class="note" style="margin-top:10px" data-en="Supported: Linux with bash — Debian, Ubuntu, RHEL, CentOS, Rocky, Alma, Fedora, Alpine, Arch, openSUSE, Gentoo (emerge). macOS is not supported. yq is downloaded for your CPU arch (amd64/arm64/arm)." data-zh="支持带 bash 的 Linux：Debian、Ubuntu、RHEL、CentOS、Rocky、Alma、Fedora、Alpine、Arch、openSUSE、Gentoo 等。macOS 不支持。yq 会按 CPU 架构下载。">Supported: Linux with bash — Debian, Ubuntu, RHEL, Fedora, Alpine, Arch, openSUSE and more. macOS not supported.</div>
   </div>
 </section>
 
 <section id="notify">
   <div class="wrap">
     <div class="sec-tag" data-en="Notifications" data-zh="推送通知">Notifications</div>
-    <h2 class="sec-title" data-en="Get pinged before things break" data-zh="出问题之前，手机先响">Get pinged before things break</h2>
-    <p class="sec-sub" data-en="A modular alerting layer (Bark today). Rules are edge-triggered with a cooldown so you never get spammed." data-zh="通过 Bark 推送到手机。只在状态变化时告警，还有冷却时间，不会刷屏。">A modular alerting layer (Bark today). Edge-triggered with cooldown, so no spam.</p>
+    <h2 class="sec-title" data-en="Get pinged before things break" data-zh="阈值到了再提醒">Get pinged before things break</h2>
+    <p class="sec-sub" data-en="A modular alerting layer (Bark today). Rules are edge-triggered with a cooldown so you never get spammed." data-zh="现在支持 Bark。规则只在状态变化时触发，同一条规则有冷却时间，避免重复推送。">A modular alerting layer (Bark today). Edge-triggered with cooldown, so no spam.</p>
     <div class="notify-layout">
       <ul class="rules">
-        <li><b>CPU</b> — <span data-en="fire when CPU usage % reaches threshold" data-zh="CPU 使用率超过设定值">fire when CPU usage % reaches threshold</span></li>
-        <li><b>Net</b> — <span data-en="monthly traffic quota % reaches threshold" data-zh="本月流量用到配额的百分之几">monthly traffic quota % reaches threshold</span></li>
-        <li><b>NIC</b> — <span data-en="throughput reaches % of bandwidth;" data-zh="网速达到带宽的百分之几；">throughput reaches % of bandwidth;</span> <code>mode: upload|download|both</code></li>
-        <li><b>Throttle</b> — <span data-en="fire when rate-limiting becomes active" data-zh="自动限速被触发时">fire when rate-limiting becomes active</span></li>
-        <li><b>Disk</b> — <span data-en="usage % reaches threshold;" data-zh="磁盘使用率超过设定值；">usage % reaches threshold;</span> <code>paths: [...]</code></li>
+        <li><b>CPU</b> — <span data-en="fire when CPU usage % reaches threshold" data-zh="CPU 使用率达到阈值">fire when CPU usage % reaches threshold</span></li>
+        <li><b>Net</b> — <span data-en="monthly traffic quota % reaches threshold" data-zh="本月流量达到配额阈值">monthly traffic quota % reaches threshold</span></li>
+        <li><b>NIC</b> — <span data-en="throughput reaches % of bandwidth;" data-zh="网速达到带宽阈值；">throughput reaches % of bandwidth;</span> <code>mode: upload|download|both</code></li>
+        <li><b>Throttle</b> — <span data-en="fire when rate-limiting becomes active" data-zh="限速开始生效">fire when rate-limiting becomes active</span></li>
+        <li><b>Disk</b> — <span data-en="usage % reaches threshold;" data-zh="磁盘使用率达到阈值；">usage % reaches threshold;</span> <code>paths: [...]</code></li>
       </ul>
       <div class="notify-visual">
         <div class="phone-shot-frame">
@@ -330,7 +342,7 @@ sysinfo --notify-test
 <span class="cmt"># <span data-en="evaluate rules (cron)" data-zh="评估规则（cron）">evaluate rules (cron)</span></span>
 sysinfo --notify-check
 <span class="cmt"># */5 * * * * /usr/local/bin/sysinfo --notify-check</span></pre>
-        <p class="phone-shot-caption" data-en="Bark push on iPhone — CPU, traffic, throttle and more" data-zh="iPhone 上的 Bark 推送 — CPU、流量、限速等告警">Bark push on iPhone — CPU, traffic, throttle and more</p>
+        <p class="phone-shot-caption" data-en="Bark push on iPhone — CPU, traffic, throttle and more" data-zh="Bark 推送示例：CPU、流量、限速等告警">Bark push on iPhone — CPU, traffic, throttle and more</p>
       </div>
     </div>
   </div>
@@ -339,8 +351,8 @@ sysinfo --notify-check
 <section id="config">
   <div class="wrap">
     <div class="sec-tag" data-en="Configuration" data-zh="配置">Configuration</div>
-    <h2 class="sec-title" data-en="One YAML to rule it all" data-zh="一个配置文件搞定">One YAML to rule it all</h2>
-    <p class="sec-sub"><code>/etc/sysinfo/config.yaml</code> — <span data-en="edit, then apply with sudo sysinfo -r" data-zh="改完执行 sudo sysinfo -r 即可生效">edit, then apply with sudo sysinfo -r</span>.</p>
+    <h2 class="sec-title" data-en="One YAML to rule it all" data-zh="配置集中在一个 YAML">One YAML to rule it all</h2>
+    <p class="sec-sub"><code>/etc/sysinfo/config.yaml</code> — <span data-en="edit, then apply with sudo sysinfo -r" data-zh="改完执行 sudo sysinfo -r 应用">edit, then apply with sudo sysinfo -r</span>.</p>
     <pre class="code"><button class="copy">copy</button>traffic:
   enabled: true
   limit: "1T"               <span class="cmt"># 1T, 500G, 100M, UNLIMITED</span>
@@ -368,13 +380,13 @@ notify:
     nic:      { enabled: false, threshold: 80, mode: both, upload_rate: 0, download_rate: 0 }
     throttle: { enabled: false }
     disk:     { enabled: false, threshold: 90, paths: [] }</pre>
-    <div class="note"><span data-en="Full reference and troubleshooting in the" data-zh="详细说明和排错请看">Full reference and troubleshooting in the</span> <a href="wiki.html" data-en="Wiki ↗" data-zh="Wiki 文档 ↗">Wiki ↗</a>.</div>
+    <div class="note"><span data-en="Full reference and troubleshooting in the" data-zh="完整配置和排错见">Full reference and troubleshooting in the</span> <a href="wiki.html" data-en="Wiki ↗" data-zh="Wiki 文档 ↗">Wiki ↗</a>.</div>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <div>sysinfo-cli · <span data-en="lightweight system dashboard" data-zh="轻量系统状态面板">lightweight system dashboard</span></div>
+    <div>sysinfo-cli · <span data-en="lightweight system dashboard" data-zh="Linux 服务器状态面板">lightweight system dashboard</span></div>
     <div>
       <a href="https://github.com/baixiaoshengofficial/sysinfo-cli" target="_blank" rel="noopener">GitHub</a> ·
       <a href="wiki.html">Wiki</a> ·

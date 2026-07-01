@@ -9,6 +9,7 @@ set -e
 
 REPORT_FILE="tests/test_report.md"
 TEMP_CONFIG="tests/test_config.yaml"
+CPUINFO_FIXTURE="tests/test_cpuinfo"
 SYSINFO_CLI="./src/sysinfo.sh"
 THROTTLE_DIAG="./scripts/test_throttle.sh"
 
@@ -120,8 +121,30 @@ else
   echo "- [ ] 失败: install.sh 不存在或不可执行" >> "$REPORT_FILE"
 fi
 
+# 测试 8: CPU 核心数探测
+echo "### 测试 8: CPU 核心数探测" >> "$REPORT_FILE"
+cat > "$CPUINFO_FIXTURE" << 'EOF'
+processor   : 0
+model name  : Test CPU
+
+processor   : 1
+model name  : Test CPU
+
+processor   : 2
+model name  : Test CPU
+
+processor   : 3
+model name  : Test CPU
+EOF
+CORE_COUNT=$(SYSINFO_CPUINFO_FILE="$CPUINFO_FIXTURE" bash -c 'source ./src/sysinfo_core.sh; get_cpu_core_count' 2>&1 || true)
+if [ "$CORE_COUNT" = "4" ]; then
+  echo "- [x] 通过: CPU 核心数从 /proc/cpuinfo 正确识别为 4" >> "$REPORT_FILE"
+else
+  echo "- [ ] 失败: CPU 核心数识别异常 (期望 4，实际 $CORE_COUNT)" >> "$REPORT_FILE"
+fi
+
 # 测试 8-10: 边缘案例
-echo "### 测试 8-10: 边缘案例" >> "$REPORT_FILE"
+echo "### 测试 9-11: 边缘案例" >> "$REPORT_FILE"
 INV_OUT=$("$SYSINFO_CLI" --invalid-flag 2>&1 || true)
 if echo "$INV_OUT" | grep -q "Unknown option"; then
   echo "- [x] 通过: 无效参数正确提示" >> "$REPORT_FILE"
@@ -151,4 +174,4 @@ echo "测试报告已生成: $REPORT_FILE"
 cat "$REPORT_FILE"
 
 # 清理临时文件
-rm -f "$TEMP_CONFIG"
+rm -f "$TEMP_CONFIG" "$CPUINFO_FIXTURE"

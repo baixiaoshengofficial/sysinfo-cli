@@ -112,13 +112,61 @@ draw_bar() {
     local filled=$((percent / 10))
     local empty=$((10 - filled))
     local i
-    # Solid blocks: white (used) + black (free).
+    # Solid blocks: white (used) + gray (free).
     for ((i=0; i<filled; i++)); do printf '\033[97m█\033[0m'; done
-    for ((i=0; i<empty; i++)); do printf '\033[30m█\033[0m'; done
+    for ((i=0; i<empty; i++)); do printf '\033[90m█\033[0m'; done
+}
+
+get_cpu_core_count() {
+    local cores=""
+    local cpuinfo_file="${SYSINFO_CPUINFO_FILE:-/proc/cpuinfo}"
+
+    if [ -f "$cpuinfo_file" ]; then
+        cores=$(awk -F: '/^[[:space:]]*processor[[:space:]]*:/{count++} END{if(count>0) print count}' "$cpuinfo_file" 2>/dev/null)
+    fi
+
+    if ! [[ "$cores" =~ ^[0-9]+$ ]] || [ "$cores" -le 0 ]; then
+        cores=$(awk -F, '
+            {
+                for (i = 1; i <= NF; i++) {
+                    split($i, r, "-")
+                    if (r[1] ~ /^[0-9]+$/ && r[2] ~ /^[0-9]+$/ && r[2] >= r[1]) {
+                        total += r[2] - r[1] + 1
+                    } else if ($i ~ /^[0-9]+$/) {
+                        total++
+                    }
+                }
+            }
+            END{if(total>0) print total}
+        ' /sys/devices/system/cpu/online 2>/dev/null)
+    fi
+
+    if ! [[ "$cores" =~ ^[0-9]+$ ]] || [ "$cores" -le 0 ]; then
+        cores=$(lscpu 2>/dev/null | awk -F: '/^CPU\(s\)/ && $1 !~ /NUMA/ {gsub(/[ \t]/, "", $2); print $2; exit}')
+    fi
+
+    if ! [[ "$cores" =~ ^[0-9]+$ ]] || [ "$cores" -le 0 ]; then
+        cores=$(getconf _NPROCESSORS_ONLN 2>/dev/null)
+    fi
+
+    if ! [[ "$cores" =~ ^[0-9]+$ ]] || [ "$cores" -le 0 ]; then
+        cores=$(nproc --all 2>/dev/null || nproc 2>/dev/null || echo "1")
+    fi
+
+    [[ "$cores" =~ ^[0-9]+$ ]] && [ "$cores" -gt 0 ] || cores="1"
+    echo "$cores"
 }
 
 CPU_MODEL=$(timeout 1 awk -F': ' '/model name/{print $2; exit}' /proc/cpuinfo 2>/dev/null)
 CPU_MODEL=${CPU_MODEL:-N/A}
+CPU_CORES=$(get_cpu_core_count | tr -d '\r')
+if [ "$_banner_lang" = "zh" ]; then
+    CPU_CORE_TEXT="${CPU_CORES} 核"
+elif [ "$CPU_CORES" = "1" ]; then
+    CPU_CORE_TEXT="1 core"
+else
+    CPU_CORE_TEXT="${CPU_CORES} cores"
+fi
 
 IP_V4=$(timeout 1 hostname -I 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i !~ /:/) {print $i; exit}}')
 IP_V4=${IP_V4:-N/A}
@@ -178,7 +226,7 @@ echo -e "  \033[1m$L_TITLE\033[0m - $(date +'%Y-%m-%d %H:%M:%S')"
 echo -e "\033[1;36m================================================================\033[0m"
 
 echo -e "\033[0;32m$L_CORE\033[0m"
-printf "  %-14s : %s\n" "$L_CPU" "$CPU_MODEL"
+printf "  %-14s : %s\n" "$L_CPU" "$CPU_MODEL ($CPU_CORE_TEXT)"
 printf "  %-14s : %s\n" "$L_IPV4" "$IP_V4"
 printf "  %-14s : %s\n" "$L_UPTIME" "$UPTIME"
 

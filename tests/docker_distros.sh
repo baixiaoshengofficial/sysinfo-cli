@@ -14,6 +14,7 @@ DOCKER="${REPO_ROOT}/scripts/docker-cmd.sh"
 FAIL=0
 PASS=0
 RUN_TIMEOUT="${RUN_TIMEOUT:-360}"
+DOCKER_PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
 REPORT="${REPO_ROOT}/tests/docker_distros_report.md"
 
 # id|base_image
@@ -47,6 +48,7 @@ echo "=== sysinfo-cli multi-distro Docker install test ==="
 echo "Repo: $REPO_ROOT"
 echo "Docker: $DOCKER"
 echo "Timeout per distro: ${RUN_TIMEOUT}s"
+echo "Platform: ${DOCKER_PLATFORM}"
 echo ""
 
 {
@@ -54,6 +56,7 @@ echo ""
     echo ""
     echo "- Time: $(date '+%Y-%m-%d %H:%M:%S')"
     echo "- Repo: \`$REPO_ROOT\`"
+    echo "- Platform: \`$DOCKER_PLATFORM\`"
     echo ""
     echo "| Distro | Image | Result |"
     echo "|--------|-------|--------|"
@@ -75,17 +78,19 @@ want_distro() {
 run_one() {
     local id="$1" image="$2"
     local logfile shell="bash" sysinfo_smoke
+    local docker_extra_args=()
     case "$id" in alpine|openwrt) shell="sh" ;; esac
+    case "$id" in arch) docker_extra_args+=(--security-opt seccomp=unconfined) ;; esac
     if [ "$id" = "openwrt" ]; then
         sysinfo_smoke='sysinfo 2>&1 | head -40 | grep -qiE '\''CPU|System Information|系统信息'\'''
     else
         sysinfo_smoke='timeout 8 sysinfo 2>&1 | grep -qiE '\''CPU|System Information|系统信息'\'''
     fi
-    logfile="$(mktemp "/tmp/sysinfo-docker-${id}.XXXX.log")"
+    logfile="$(mktemp -t "sysinfo-docker-${id}.XXXXXX")"
 
     printf '>> %s (%s)\n' "$id" "$image"
 
-    if ! timeout "$RUN_TIMEOUT" "$DOCKER" run --rm \
+    local docker_run=("$DOCKER" run --rm --platform "$DOCKER_PLATFORM" "${docker_extra_args[@]+"${docker_extra_args[@]}"}" \
         -v "$REPO_ROOT:/opt/sysinfo-cli" \
         -w /opt/sysinfo-cli \
         "$image" "$shell" -lc "
@@ -99,7 +104,13 @@ run_one() {
             sysinfo -h 2>&1 | grep -qi sysinfo
             ${sysinfo_smoke}
             /usr/local/bin/yq eval '.display.language' /etc/sysinfo/config.yaml | grep -qE 'en|zh|auto'
-        " >"$logfile" 2>&1; then
+        ")
+
+    if command -v timeout >/dev/null 2>&1; then
+        docker_run=(timeout "$RUN_TIMEOUT" "${docker_run[@]}")
+    fi
+
+    if ! "${docker_run[@]}" >"$logfile" 2>&1; then
         log_fail "$id — see $logfile"
         echo "| $id | \`$image\` | FAIL |" >>"$REPORT"
         tail -n 30 "$logfile" | sed 's/^/      /'
@@ -114,12 +125,12 @@ run_one() {
 
 for entry in "${DISTROS[@]}"; do
     IFS='|' read -r id image <<<"$entry"
-    if ! want_distro "$id" "${FILTER_ARGS[@]}"; then
+    if ! want_distro "$id" "${FILTER_ARGS[@]+"${FILTER_ARGS[@]}"}"; then
         continue
     fi
     if ! "$DOCKER" image inspect "$image" >/dev/null 2>&1; then
         printf '>> %s (%s) — pulling image...\n' "$id" "$image"
-        "$DOCKER" pull "$image"
+        "$DOCKER" pull --platform "$DOCKER_PLATFORM" "$image"
     fi
     run_one "$id" "$image" || true
     echo ""
