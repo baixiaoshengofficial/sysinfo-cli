@@ -16,6 +16,7 @@ BRANCH      := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)
 DOCS_PORT   ?= 8099
 RUN_TIMEOUT ?= 5
 DOCKER      := $(ROOT)/scripts/docker-cmd.sh
+DOCKER_SMOKE_DISTROS ?= debian alpine openwrt
 
 SRC_SCRIPTS := $(wildcard $(ROOT)/src/*.sh) \
                $(ROOT)/install.sh $(ROOT)/uninstall.sh \
@@ -25,7 +26,7 @@ SRC_SCRIPTS := $(wildcard $(ROOT)/src/*.sh) \
 .PHONY: help all dev run run-live help-cli syntax lint test validate test-throttle \
         test-notify test-all install install-zh install-en install-reset uninstall \
         reinstall reload-config deploy push ship docs docs-serve docs-stop docker-build docker-build-distros docker-test \
-        docker-test-distros docker-shell clean chmod
+        docker-smoke docker-smoke-distros docker-test-distros docker-test-distros-regression docker-shell clean chmod
 
 .DEFAULT_GOAL := help
 
@@ -192,8 +193,17 @@ docker-test: docker-build ## 在容器内运行 test + validate
 		apt-get update -qq && apt-get install -y -qq zsh >/dev/null 2>&1; \
 		bash tests/test_sysinfo.sh && bash tests/server_validate.sh'
 
-docker-test-distros: chmod ## 多发行版 Docker 安装冒烟测试 (install.sh + yq + tc + sysinfo)
+docker-smoke: chmod ## 快速 Docker 冒烟（Debian 单发行版）
+	@RUN_TIMEOUT=180 bash $(ROOT)/tests/docker_distros.sh debian
+
+docker-smoke-distros: chmod ## 代表性 Docker 冒烟（默认: $(DOCKER_SMOKE_DISTROS)）
+	@RUN_TIMEOUT=240 bash $(ROOT)/tests/docker_distros.sh $(DOCKER_SMOKE_DISTROS)
+
+docker-test-distros: chmod ## 全发行版 Docker 安装冒烟测试（不跑重回归）
 	@bash $(ROOT)/tests/docker_distros.sh
+
+docker-test-distros-regression: chmod ## 全发行版 Docker 回归测试（NAT/流量/限速/重置/banner）
+	@REGRESSION=1 RUN_TIMEOUT=420 bash $(ROOT)/tests/docker_distros.sh
 
 docker-shell: docker-build ## 进入容器交互 shell
 	$(DOCKER) run --rm -it sysinfo-cli:dev

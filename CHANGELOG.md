@@ -25,6 +25,9 @@
 
 ### Changed · 变更
 
+- **Docker 测试分层**：默认多发行版测试回到轻量安装冒烟；完整 NAT / 流量 / 限速 / 重置 / banner 回归改为 `REGRESSION=1` 或 `make docker-test-distros-regression` 显式运行，并新增 `make docker-smoke` / `make docker-smoke-distros` 快速入口。
+  **Tiered Docker tests**: default multi-distro testing is lightweight install smoke again; full NAT / traffic / throttle / reset / banner regression now runs explicitly via `REGRESSION=1` or `make docker-test-distros-regression`, with new quick `make docker-smoke` / `make docker-smoke-distros` targets.
+
 - **Docker 回归测试**：多发行版测试从安装冒烟扩展到 NAT、流量显示、网速显示、限速配置/诊断、流量重置联动等关键路径。
   **Docker regression tests**: multi-distro testing now covers NAT, traffic display, speed display, throttle config/diagnostics, and traffic reset linkage in addition to install smoke checks.
 

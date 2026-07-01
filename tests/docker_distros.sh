@@ -2,6 +2,7 @@
 # Smoke-test install.sh on multiple Linux distros via Docker.
 # Usage: bash tests/docker_distros.sh [distro_id ...]
 #   distro_id: debian ubuntu fedora rocky alpine arch opensuse openwrt
+#   REGRESSION=1 bash tests/docker_distros.sh [distro_id ...]
 #
 # Docker access (no pkexec prompts):
 #   1) User in group 'docker' (recommended): sudo usermod -aG docker $USER
@@ -15,6 +16,7 @@ FAIL=0
 PASS=0
 RUN_TIMEOUT="${RUN_TIMEOUT:-360}"
 DOCKER_PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
+REGRESSION="${REGRESSION:-0}"
 REPORT="${REPO_ROOT}/tests/docker_distros_report.md"
 
 # id|base_image
@@ -49,6 +51,11 @@ echo "Repo: $REPO_ROOT"
 echo "Docker: $DOCKER"
 echo "Timeout per distro: ${RUN_TIMEOUT}s"
 echo "Platform: ${DOCKER_PLATFORM}"
+if [ "$REGRESSION" = "1" ] || [ "$REGRESSION" = "true" ]; then
+    echo "Mode: regression"
+else
+    echo "Mode: smoke"
+fi
 echo ""
 
 {
@@ -57,6 +64,11 @@ echo ""
     echo "- Time: $(date '+%Y-%m-%d %H:%M:%S')"
     echo "- Repo: \`$REPO_ROOT\`"
     echo "- Platform: \`$DOCKER_PLATFORM\`"
+    if [ "$REGRESSION" = "1" ] || [ "$REGRESSION" = "true" ]; then
+        echo "- Mode: \`regression\`"
+    else
+        echo "- Mode: \`smoke\`"
+    fi
     echo ""
     echo "| Distro | Image | Result |"
     echo "|--------|-------|--------|"
@@ -84,11 +96,16 @@ run_one() {
     if [ "$id" = "openwrt" ]; then
         sysinfo_smoke='sysinfo 2>&1 | head -40 | grep -qiE '\''CPU|System Information|系统信息'\'''
     else
-        sysinfo_smoke='timeout 8 sysinfo 2>&1 | grep -qiE '\''CPU|System Information|系统信息'\'''
+        sysinfo_smoke='timeout 4 sysinfo 2>&1 | grep -qiE '\''CPU|System Information|系统信息'\'''
     fi
     logfile="$(mktemp -t "sysinfo-docker-${id}.XXXXXX")"
 
     printf '>> %s (%s)\n' "$id" "$image"
+
+    local regression_cmd=':'
+    if [ "$REGRESSION" = "1" ] || [ "$REGRESSION" = "true" ]; then
+        regression_cmd='bash /opt/sysinfo-cli/tests/docker_regression.sh'
+    fi
 
     local docker_run=("$DOCKER" run --rm --platform "$DOCKER_PLATFORM" "${docker_extra_args[@]+"${docker_extra_args[@]}"}" \
         -v "$REPO_ROOT:/opt/sysinfo-cli" \
@@ -104,7 +121,7 @@ run_one() {
             sysinfo -h 2>&1 | grep -qi sysinfo
             ${sysinfo_smoke}
             /usr/local/bin/yq eval '.display.language' /etc/sysinfo/config.yaml | grep -qE 'en|zh|auto'
-            bash /opt/sysinfo-cli/tests/docker_regression.sh
+            ${regression_cmd}
         ")
 
     if command -v timeout >/dev/null 2>&1; then
