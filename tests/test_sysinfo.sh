@@ -32,7 +32,7 @@ nat:
 # 流量限制配置
 traffic:
   enabled: true
-  limit: "1T"               # 1T, 500G, 100M, 或 UNLIMITED
+  limit: "1T"               # 1T, 500G, 100M, UNLIMITED, 或 0
   reset_day: 1              # 1-31
   mode: "both"              # upload, download, 或 both
 
@@ -143,8 +143,17 @@ else
   echo "- [ ] 失败: CPU 核心数识别异常 (期望 4，实际 $CORE_COUNT)" >> "$REPORT_FILE"
 fi
 
-# 测试 8-10: 边缘案例
-echo "### 测试 9-11: 边缘案例" >> "$REPORT_FILE"
+# 测试 9: 流量配额无限制归一化
+echo "### 测试 9: 流量配额无限制归一化" >> "$REPORT_FILE"
+LIMIT_NORMALIZE=$(bash -c 'source ./src/sysinfo_core.sh; printf "%s,%s,%s,%s" "$(normalize_traffic_limit UNLIMITED)" "$(normalize_traffic_limit unlimited)" "$(normalize_traffic_limit 0)" "$(normalize_traffic_limit 1T)"' 2>&1 || true)
+if [ "$LIMIT_NORMALIZE" = "UNLIMITED,UNLIMITED,UNLIMITED,1T" ]; then
+  echo "- [x] 通过: UNLIMITED / unlimited / 0 均识别为无限制" >> "$REPORT_FILE"
+else
+  echo "- [ ] 失败: 流量配额无限制归一化异常 ($LIMIT_NORMALIZE)" >> "$REPORT_FILE"
+fi
+
+# 测试 10-12: 边缘案例
+echo "### 测试 10-12: 边缘案例" >> "$REPORT_FILE"
 INV_OUT=$("$SYSINFO_CLI" --invalid-flag 2>&1 || true)
 if echo "$INV_OUT" | grep -q "Unknown option"; then
   echo "- [x] 通过: 无效参数正确提示" >> "$REPORT_FILE"

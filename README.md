@@ -87,7 +87,7 @@ nat:
 # Traffic Limit Configuration
 traffic:
   enabled: true
-  limit: "1T"               # 1T, 500G, 100M, or UNLIMITED
+  limit: "1T"               # 1T, 500G, 100M, UNLIMITED, or 0
   reset_day: 1              # 1-31
   mode: "both"              # upload, download, or both
 
@@ -172,7 +172,7 @@ sysinfo -h
 ## Configuration Parameters
 
 ### Traffic Parameters
-- `limit`: Traffic limit (e.g., 1T, 500G, 100M, UNLIMITED)
+- `limit`: Traffic limit (e.g., 1T, 500G, 100M, UNLIMITED, or 0 for unlimited)
 - `reset_day`: Reset day (1-31, default: 1)
 - `mode`: Traffic mode (upload/download/both, default: both)
 

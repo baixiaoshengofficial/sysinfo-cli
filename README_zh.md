@@ -87,7 +87,7 @@ nat:
 # 流量限制配置
 traffic:
   enabled: true
-  limit: "1T"               # 1T, 500G, 100M, 或 UNLIMITED
+  limit: "1T"               # 1T, 500G, 100M, UNLIMITED, 或 0
   reset_day: 1              # 1-31
   mode: "both"              # upload, download, 或 both
 
@@ -172,7 +172,7 @@ sysinfo -h
 ## 配置参数说明
 
 ### 流量参数
-- `limit`: 流量限制（例如 1T, 500G, 100M, UNLIMITED）
+- `limit`: 流量限制（例如 1T, 500G, 100M, UNLIMITED，或用 0 表示无限制）
 - `reset_day`: 重置日期（1-31，默认：1）
 - `mode`: 流量模式（upload/download/both，默认：both）
 

@@ -57,6 +57,9 @@
 - CPU 核心数显示改为优先读取 `/proc/cpuinfo`，并通过 `/sys/devices/system/cpu/online`、`lscpu`、`getconf`、`nproc` 兜底，避免缺少 `nproc` 或受可用 CPU 限制时显示错误。
   CPU core display now prefers `/proc/cpuinfo`, with `/sys/devices/system/cpu/online`, `lscpu`, `getconf`, and `nproc` fallbacks, avoiding incorrect counts when `nproc` is missing or constrained.
 
+- `traffic.limit` 现在正确支持 `UNLIMITED` / `unlimited` / `0` 表示无限制；禁用流量统计时会清理旧的运行时流量配置，避免继续显示历史配额。
+  `traffic.limit` now supports `UNLIMITED` / `unlimited` / `0` as unlimited; disabling traffic clears stale runtime traffic config so old quotas are not shown.
+
 - ARM 主机安装错误架构的 yq 后，`language: zh` 等配置不生效。
   Wrong-arch yq on ARM caused `language: zh` and other YAML settings to be ignored.
 

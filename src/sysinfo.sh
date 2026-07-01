@@ -118,6 +118,24 @@ is_applied_config_true() {
     [ "$value" = "true" ] || [ "$value" = "yes" ] || [ "$value" = "1" ]
 }
 
+normalize_config_traffic_limit() {
+    local raw
+    raw=$(echo "${1:-}" | tr '[:lower:]' '[:upper:]')
+    raw="${raw// /}"
+
+    case "$raw" in
+        0|0B|UNLIMIT|UNLIMITED|-1)
+            echo "UNLIMITED"
+            ;;
+        "")
+            echo "1T"
+            ;;
+        *)
+            echo "$1"
+            ;;
+    esac
+}
+
 # Get a YAML sequence as newline-separated items (empty if absent/empty list).
 # Tries the explicit config file first, then the default path.
 get_config_list() {
@@ -225,6 +243,7 @@ apply_config() {
 
     traffic_enabled=$(is_applied_config_true "traffic.enabled" && echo "true" || echo "false")
     traffic_limit=$(get_applied_config "traffic.limit" "1T")
+    traffic_limit=$(normalize_config_traffic_limit "$traffic_limit")
     traffic_day=$(get_applied_config "traffic.reset_day" "1")
     traffic_mode=$(get_applied_config "traffic.mode" "both")
 
@@ -248,6 +267,9 @@ apply_config() {
         if $throttle_enabled; then
             echo "  Throttle enabled: $throttle_threshold% @ $throttle_rate"
         fi
+    else
+        run_privileged rm -f /etc/sysinfo-traffic
+        echo "✓ Traffic disabled"
     fi
 
     return 0
@@ -348,7 +370,7 @@ Configuration File Format (YAML):
 
   traffic:
     enabled: true
-    limit: "1T"               # 1T, 500G, 100M, or UNLIMITED
+    limit: "1T"               # 1T, 500G, 100M, UNLIMITED, or 0
     reset_day: 1              # 1-31
     mode: "both"              # upload, download, or both
 

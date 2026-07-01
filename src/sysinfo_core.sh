@@ -350,7 +350,7 @@ normalize_traffic_limit() {
 
     # Use case for better compatibility
     case "$raw" in
-        UNLIMIT|-1)
+        UNLIMIT|UNLIMITED|0|0B|-1)
             echo "UNLIMITED"
             return 0
             ;;
@@ -546,12 +546,16 @@ get_traffic_stats() {
     fi
 
     # Resolve the monthly limit (in bytes) and display label.
-    local limit has_limit="false" limit_bytes=0
+    local limit normalized_limit has_limit="false" limit_bytes=0
     limit=$(cfg_get "limit")
-    if [ -n "$limit" ] && limit_bytes=$(_limit_to_bytes "$limit"); then
+    normalized_limit=$(normalize_traffic_limit "$limit" 2>/dev/null || echo "UNLIMITED")
+    if [ "$normalized_limit" = "UNLIMITED" ]; then
+        limit="Unlimited"
+    elif [ -n "$normalized_limit" ] && limit_bytes=$(_limit_to_bytes "$normalized_limit"); then
+        limit="$normalized_limit"
         has_limit="true"
     else
-        limit="Unlimit"
+        limit="Unlimited"
         limit_bytes=0
     fi
 
