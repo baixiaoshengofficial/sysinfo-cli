@@ -255,4 +255,4 @@ sudo ./install.sh                # Install or update
 
 ## Sponsors
 
-Sponsored by [ForZTN](https://sponsorship.forztn.com/github.com/sysinfo-cli).
+Sponsored by [ForZTN](https://sponsorship.forztn.com/github.com/baixiaoshengofficial/sysinfo-cli).
