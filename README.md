@@ -252,3 +252,7 @@ timeout 3 ./src/sysinfo.sh       # One-shot dashboard (non-interactive)
 bash tests/server_validate.sh    # Full validation
 sudo ./install.sh                # Install or update
 ```
+
+## Sponsors
+
+Sponsored by [ForZTN](https://sponsorship.forztn.com/github.com/*).
