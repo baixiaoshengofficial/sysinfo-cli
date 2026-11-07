@@ -252,3 +252,6 @@ timeout 3 ./src/sysinfo.sh       # 一次性仪表盘（非交互）
 bash tests/server_validate.sh    # 完整验证
 sudo ./install.sh                # 安装或更新
 ```
+## Sponsors
+
+[ForZTN](https://sponsorship.forztn.com/github.com/*)赞助。
