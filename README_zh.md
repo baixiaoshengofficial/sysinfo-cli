@@ -254,4 +254,4 @@ sudo ./install.sh                # 安装或更新
 ```
 ## Sponsors
 
-[ForZTN](https://sponsorship.forztn.com/github.com/*)赞助。
+[ForZTN](https://sponsorship.forztn.com/github.com/sysinfo-cli)赞助。
